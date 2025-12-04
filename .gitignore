@@ -1,0 +1,33 @@
+# Archivos generados
+artifacts/
+*.log
+training.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.temp
+dataset.csv
+dataset/healthy/*
+dataset/sick/*
