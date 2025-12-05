@@ -178,8 +178,13 @@ try:
             ys.extend(yb.cpu().numpy().tolist()); ypred.extend(preds.cpu().numpy().tolist())
     test_loss = tloss/tn
     print("Test loss:", test_loss)
-    print(classification_report(ys, ypred, target_names=['sano','enfermo']))
-    print("Confusion matrix:\n", confusion_matrix(ys, ypred))
+    # Obtener las clases únicas presentes
+    unique_classes = sorted(list(set(ys + ypred)))
+    target_names_list = ['sano', 'enfermo']
+    # Filtrar target_names según las clases presentes
+    filtered_target_names = [target_names_list[i] for i in unique_classes if i < len(target_names_list)]
+    print(classification_report(ys, ypred, labels=unique_classes, target_names=filtered_target_names, zero_division=0))
+    print("Confusion matrix:\n", confusion_matrix(ys, ypred, labels=unique_classes))
 except Exception as e:
     log_print(f"Error durante la evaluación: {e}")
     traceback.print_exc()

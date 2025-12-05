@@ -271,13 +271,15 @@ pip install torch torchvision
 
 ## 📝 Notas Importantes
 
-1. **Dataset pequeño**: Con solo 6 imágenes, el modelo puede sobreajustarse fácilmente. Se recomienda tener al menos 50-100 imágenes por clase para mejores resultados.
+1. **Dataset pequeño**: Con solo 6 imágenes, el modelo puede sobreajustarse fácilmente. Se recomienda tener al menos 50-100 imágenes por clase para mejores resultados. En pruebas con 6 imágenes (3 sanas, 3 enfermas), el modelo alcanzó 100% de precisión, pero esto puede indicar sobreajuste.
 
 2. **Data Augmentation**: El script incluye aumentación de datos (rotación, espejo) para mejorar el entrenamiento con datasets pequeños.
 
-3. **División de datos**: Con muy pocas imágenes, la división 70/15/15 puede resultar en conjuntos muy pequeños. Considera ajustar estos porcentajes si tienes más datos.
+3. **División de datos**: Con muy pocas imágenes, la división 70/15/15 puede resultar en conjuntos muy pequeños. Con 6 imágenes: Train: 4, Val: 1, Test: 1. Considera ajustar estos porcentajes si tienes más datos.
 
 4. **GPU**: Si tienes una GPU compatible con CUDA, el script la usará automáticamente. De lo contrario, usará CPU.
+
+5. **Tiempo de ejecución**: Con 6 imágenes y 20 épocas, el entrenamiento toma aproximadamente 1-3 minutos en CPU.
 
 ## 🎯 Próximos Pasos
 
