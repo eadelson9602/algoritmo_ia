@@ -310,6 +310,111 @@ Tienes varias opciones para entrenar el modelo:
 - **Si no hay modelo**: La aplicación funcionará pero mostrará "no clasificado" para todas las imágenes
 - **Modelos grandes**: Si el modelo es >100MB, considera usar Git LFS o subirlo manualmente después del despliegue
 
+## 🔄 Aprendizaje Continuo (Continual Learning)
+
+El sistema incluye funcionalidad de **aprendizaje continuo** que permite mejorar el modelo automáticamente con las imágenes que los usuarios suben y procesan.
+
+### ¿Cómo funciona?
+
+1. **Almacenamiento automático**: Cada vez que se procesa una imagen, el sistema guarda automáticamente:
+
+   - La imagen procesada
+   - La clasificación predicha por el modelo
+   - El nivel de confianza
+
+2. **Correcciones de usuarios**: Los usuarios pueden corregir clasificaciones incorrectas:
+
+   - En la tabla de resultados, cada imagen tiene un botón "Corregir"
+   - Al hacer clic, se abre un modal para seleccionar la clasificación correcta
+   - Las correcciones se guardan para reentrenamiento
+
+3. **Reentrenamiento incremental**: El modelo se puede reentrenar periódicamente:
+   - Combina datos originales con feedback de usuarios
+   - Usa fine-tuning (aprendizaje de transferencia) para mejorar sin perder conocimiento previo
+   - Guarda backups del modelo anterior por seguridad
+
+### Configuración del Aprendizaje Continuo
+
+#### Opción 1: Reentrenamiento Manual
+
+Ejecuta el script de reentrenamiento cuando tengas suficientes correcciones:
+
+```bash
+# Reentrenar con mínimo 10 imágenes de feedback
+python incremental_train.py --epochs 10 --min-feedback 10
+```
+
+#### Opción 2: Reentrenamiento Automático (Cron Job)
+
+En producción, puedes configurar un cron job o tarea programada:
+
+**Linux/Mac (cron)**:
+
+```bash
+# Reentrenar cada domingo a las 2 AM
+0 2 * * 0 cd /ruta/al/proyecto && python incremental_train.py --epochs 10 --min-feedback 20
+```
+
+**Windows (Task Scheduler)**:
+
+- Crear tarea programada que ejecute: `python incremental_train.py --epochs 10 --min-feedback 20`
+
+**Render/Railway (Cron Jobs)**:
+
+- Usa el endpoint `/api/v1/model/retrain` desde un servicio externo
+- O configura un cron job en tu servidor
+
+#### Opción 3: Reentrenamiento desde la API
+
+Puedes disparar el reentrenamiento mediante la API:
+
+```bash
+curl -X POST "https://tu-backend.onrender.com/api/v1/model/retrain?epochs=10&min_feedback=10"
+```
+
+**⚠️ Nota**: En Render/Railway, el reentrenamiento puede tomar tiempo. Considera ejecutarlo en un proceso separado o usar un servicio de tareas.
+
+### Estructura de Datos de Feedback
+
+Los datos se almacenan en:
+
+- `feedback_data/feedback.csv`: Historial completo de procesamientos y correcciones
+- `feedback_data/images/`: Imágenes organizadas por clase (healthy/sick)
+
+### Endpoints de Aprendizaje Continuo
+
+- `POST /api/v1/feedback/correct`: Corregir una clasificación
+
+  ```json
+  {
+    "image_path": "uploads/imagen.jpg",
+    "corrected_label": 0,
+    "corrected_label_name": "sano",
+    "user_feedback": "El gato está sano"
+  }
+  ```
+
+- `GET /api/v1/feedback/stats`: Obtener estadísticas de feedback
+
+  ```json
+  {
+    "total_images": 150,
+    "corrections": 12,
+    "accuracy_estimate": 0.92
+  }
+  ```
+
+- `POST /api/v1/model/retrain`: Disparar reentrenamiento
+  - Parámetros: `epochs` (default: 10), `min_feedback` (default: 10)
+
+### Mejores Prácticas
+
+1. **Mínimo de correcciones**: Espera al menos 20-50 correcciones antes de reentrenar
+2. **Validación**: Siempre valida el modelo en un conjunto de test después del reentrenamiento
+3. **Backups**: El sistema guarda backups automáticamente en `artifacts/backups/`
+4. **Monitoreo**: Revisa las estadísticas de feedback para detectar problemas
+5. **Calidad de datos**: Asegúrate de que las correcciones sean precisas antes de reentrenar
+
 ## 🌐 Despliegue en Producción
 
 ### Opción 1: Railway (Recomendado - Más Fácil)
@@ -361,7 +466,7 @@ Railway permite desplegar backend y frontend fácilmente.
    - **Name**: `algoritmo-ia-backend`
    - **Environment**: **Python 3** ⚠️ **Importante**: Selecciona Python 3, NO Docker (a menos que tengas un Dockerfile específico)
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT` ⚠️ **CRÍTICO**: Debe ser `uvicorn`, NO `gunicorn`
 5. **Environment Variables**:
    ```
    PORT=8000
@@ -369,7 +474,11 @@ Railway permite desplegar backend y frontend fácilmente.
    ```
 6. Render asignará una URL (ej: `https://algoritmo-ia-backend.onrender.com`)
 
-**Nota sobre Environment**: Si Render detecta automáticamente Docker, cámbialo a **Python 3**. Docker solo es necesario si tienes un `Dockerfile` en la raíz del proyecto y quieres usarlo. Para un despliegue simple, Python 3 es más fácil y rápido.
+**Notas importantes**:
+
+- **Environment**: Si Render detecta automáticamente Docker, cámbialo a **Python 3**. Docker solo es necesario si tienes un `Dockerfile` en la raíz del proyecto y quieres usarlo.
+- **Start Command**: Asegúrate de que sea `uvicorn main:app --host 0.0.0.0 --port $PORT`. Si Render intenta usar `gunicorn`, cámbialo manualmente en la configuración.
+- **Procfile**: Si tienes un `Procfile` en tu repositorio, Render puede leerlo. Asegúrate de que contenga `web: uvicorn main:app --host 0.0.0.0 --port $PORT` (sin gunicorn).
 
 #### Frontend en Render
 
@@ -448,7 +557,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Crear directorios necesarios
-RUN mkdir -p uploads outputs artifacts
+RUN mkdir -p uploads outputs artifacts feedback_data feedback_data/images artifacts/backups
 
 # Exponer puerto
 EXPOSE 8000
@@ -496,6 +605,7 @@ services:
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
       - ./artifacts:/app/artifacts
+      - ./feedback_data:/app/feedback_data # ⚠️ CRÍTICO para reentrenamiento
     restart: unless-stopped
 
   frontend:
@@ -608,6 +718,223 @@ VITE_API_URL=https://tu-backend.railway.app
 
 **Nota**: Si no incluyes el modelo, la aplicación funcionará pero mostrará "no clasificado" para todas las imágenes. El backend mostrará un mensaje de advertencia en los logs.
 
+### ⚠️ Consideraciones Especiales para Reentrenamiento en Producción
+
+El reentrenamiento tiene requisitos específicos que debes considerar al desplegar:
+
+#### 1. **Almacenamiento Persistente**
+
+El sistema necesita almacenar:
+
+- `feedback_data/feedback.csv` - Historial de feedback
+- `feedback_data/images/` - Imágenes para reentrenamiento
+- `artifacts/best_model.pth` - Modelo entrenado
+- `artifacts/backups/` - Backups del modelo
+
+**Render/Railway (Gratuito)**:
+
+- ⚠️ **Limitación**: El almacenamiento es efímero. Los datos se pierden al reiniciar el servicio.
+- **Solución**: Usa volúmenes persistentes (Railway) o almacenamiento externo (S3, etc.)
+
+**Railway con Volúmenes**:
+
+1. En tu servicio backend → **Settings** → **Volumes**
+2. Agregar volúmenes para:
+   - `feedback_data/` → `/app/feedback_data`
+   - `artifacts/` → `/app/artifacts`
+   - `uploads/` → `/app/uploads` (opcional, para mantener imágenes)
+
+**Render (Gratuito)**:
+
+- ⚠️ **NO soporta volúmenes persistentes en el plan gratuito**
+- ⚠️ **Los datos se pierden cuando el servicio se reinicia** (sleep después de inactividad, despliegues, etc.)
+- **¿Funcionará el reentrenamiento?**
+  - ✅ **Sí, PERO con limitaciones**:
+    - Funciona mientras el servicio está activo
+    - El feedback se guarda en disco temporal (`feedback_data/`)
+    - El reentrenamiento puede ejecutarse y actualizar el modelo
+    - ⚠️ **PERO**: Si Render reinicia el servicio (sleep, despliegue, error), se pierden:
+      - Todos los datos de `feedback_data/` (feedback.csv, imágenes)
+      - El modelo actualizado en `artifacts/best_model.pth` (se restaura al del repositorio)
+      - Los backups en `artifacts/backups/`
+  - **Cuándo se reinicia**:
+    - Después de 15 minutos de inactividad (sleep)
+    - Al hacer un nuevo despliegue (git push)
+    - Si el servicio falla y se reinicia
+  - **Alternativas para persistencia**:
+    - **Opción 1**: Usar almacenamiento externo (S3, Google Cloud Storage) para feedback y modelos
+    - **Opción 2**: Usar Render PostgreSQL para metadatos (pero no las imágenes)
+    - **Opción 3**: Plan de pago de Render ($7/mes) que mantiene el servicio activo (menos sleep)
+    - **Opción 4**: Reentrenamiento externo (servidor separado que guarda en S3/DB)
+
+#### 2. **Recursos Computacionales**
+
+El reentrenamiento requiere:
+
+- **CPU**: Mínimo 2 cores recomendados
+- **RAM**: Mínimo 2GB (4GB+ recomendado para datasets grandes)
+- **Tiempo**: Puede tomar 10-30 minutos dependiendo del tamaño del dataset
+
+**Render/Railway (Gratuito)**:
+
+- ⚠️ **Limitación**: Recursos limitados, puede ser lento o fallar con datasets grandes
+- **Solución**:
+  - Usar menos épocas (`--epochs 5` en lugar de 10)
+  - Reentrenar solo cuando haya suficientes datos (50+ imágenes)
+  - Considerar un plan de pago para más recursos
+
+#### 3. **Timeout de Requests**
+
+**Render/Railway**:
+
+- ⚠️ **Limitación**: Requests HTTP tienen timeout (típicamente 30-60 segundos)
+- **Solución**: El reentrenamiento se ejecuta en background (threading), pero:
+  - El endpoint `/api/v1/model/retrain` retorna inmediatamente
+  - Usa `/api/v1/model/retrain/status` para verificar el progreso
+  - El frontend hace polling automático cada 2 segundos
+
+#### 4. **Recomendaciones por Plataforma**
+
+**Railway (Recomendado para Reentrenamiento)**:
+
+- ✅ Soporta volúmenes persistentes
+- ✅ Mejor para procesos largos
+- ✅ Más recursos en plan gratuito
+- **Configuración**:
+  ```yaml
+  # railway.json (opcional, para configuración avanzada)
+  {
+    "build": { "builder": "NIXPACKS" },
+    "deploy":
+      {
+        "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10,
+      },
+  }
+  ```
+
+**Render**:
+
+- ⚠️ **Plan gratuito**: Funciona pero **sin persistencia de datos**
+  - ✅ El reentrenamiento puede ejecutarse mientras el servicio está activo
+  - ✅ Los datos se guardan temporalmente en disco
+  - ⚠️ **Problema crítico**: Los datos se pierden cuando:
+    - El servicio entra en sleep (después de 15 min de inactividad)
+    - Se hace un nuevo despliegue (git push)
+    - El servicio se reinicia por error
+  - **Recomendación**:
+    - Para desarrollo/pruebas: ✅ Funciona bien
+    - Para producción: ⚠️ No recomendado sin persistencia
+- ✅ **Plan de pago ($7/mes)**:
+  - El servicio no entra en sleep (o menos frecuentemente)
+  - Los datos persisten mejor (aunque aún no hay volúmenes garantizados)
+  - Más adecuado para producción, pero aún con riesgo de pérdida de datos
+- **Alternativa sin plan de pago**:
+  - Usar almacenamiento externo (S3) para feedback y modelos (ver sección 6)
+  - O ejecutar reentrenamiento externamente (cron job en otro servidor)
+
+**VPS/Servidor Propio (Mejor para Reentrenamiento)**:
+
+- ✅ Control total sobre recursos
+- ✅ Almacenamiento persistente garantizado
+- ✅ Sin límites de tiempo
+- ✅ Puedes usar GPU si está disponible
+- **Recomendado para**: Producción con mucho tráfico
+
+#### 5. **Configuración de Docker para Reentrenamiento**
+
+Si usas Docker, asegúrate de montar volúmenes:
+
+```yaml
+# docker-compose.yml
+services:
+  backend:
+    build: .
+    volumes:
+      - ./feedback_data:/app/feedback_data # ⚠️ CRÍTICO para reentrenamiento
+      - ./artifacts:/app/artifacts # ⚠️ CRÍTICO para modelos
+      - ./uploads:/app/uploads # Opcional
+      - ./outputs:/app/outputs # Opcional
+    environment:
+      - PORT=8000
+```
+
+#### 6. **Alternativa: Almacenamiento Externo (S3/Cloud Storage)**
+
+Para Render sin plan de pago, puedes usar almacenamiento externo para mantener los datos:
+
+**Configuración con AWS S3** (ejemplo):
+
+1. **Crear bucket S3** para feedback y modelos
+2. **Modificar `feedback_storage.py`** para guardar en S3:
+
+   ```python
+   import boto3
+   import os
+
+   s3 = boto3.client('s3',
+       aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+       aws_secret_access_key=os.getenv('AWS_SECRET_KEY')
+   )
+
+   # Guardar feedback.csv en S3 después de cada actualización
+   s3.upload_file('feedback_data/feedback.csv', 'bucket-name', 'feedback.csv')
+
+   # Cargar desde S3 al iniciar
+   s3.download_file('bucket-name', 'feedback.csv', 'feedback_data/feedback.csv')
+   ```
+
+3. **Variables de entorno en Render**:
+   ```
+   AWS_ACCESS_KEY=tu_key
+   AWS_SECRET_KEY=tu_secret
+   S3_BUCKET=tu-bucket
+   ```
+4. **Ventajas**:
+   - ✅ Datos persistentes incluso si Render reinicia
+   - ✅ Funciona en plan gratuito
+   - ✅ Escalable
+   - ✅ Backup automático
+
+**Otras opciones de almacenamiento**:
+
+- Google Cloud Storage
+- Azure Blob Storage
+- DigitalOcean Spaces
+- Backblaze B2
+
+#### 7. **Alternativa: Reentrenamiento Externo**
+
+Si Render/Railway no es suficiente, puedes:
+
+1. **Backend en Render/Railway** (solo clasificación)
+2. **Servidor separado para reentrenamiento**:
+
+   - VPS barato (DigitalOcean $5/mes, Linode, etc.)
+   - Google Colab (gratis, con GPU) - ejecutar manualmente
+   - AWS EC2 (con GPU si es necesario)
+
+   **Flujo**:
+
+   - Backend guarda feedback en S3 o base de datos
+   - Servidor de reentrenamiento lee datos periódicamente (cron job)
+   - Reentrena y sube el modelo actualizado a S3
+   - Backend descarga el modelo actualizado desde S3 al iniciar
+
+#### 8. **Configuración de Variables de Entorno para Reentrenamiento**
+
+```env
+# Backend
+PORT=8000
+ALLOWED_ORIGINS=https://tu-frontend.vercel.app
+
+# Opcional: Configurar límites de reentrenamiento
+MAX_RETRAIN_EPOCHS=10
+MIN_FEEDBACK_FOR_RETRAIN=10
+RETRAIN_TIMEOUT=3600  # 1 hora en segundos
+```
+
 ### Checklist de Despliegue
 
 - [ ] Backend desplegado y accesible
@@ -615,9 +942,13 @@ VITE_API_URL=https://tu-backend.railway.app
 - [ ] CORS configurado en backend con URL del frontend
 - [ ] Modelo entrenado (`artifacts/best_model.pth`) incluido en el despliegue
 - [ ] Variables de entorno configuradas
+- [ ] **Almacenamiento persistente configurado** (volúmenes o S3) ⚠️ **CRÍTICO para reentrenamiento**
 - [ ] Probar subida de imágenes
 - [ ] Probar descarga de CSV
 - [ ] Verificar que las clasificaciones funcionen
+- [ ] **Probar guardado de feedback** (verificar que `feedback_data/feedback.csv` se cree)
+- [ ] **Probar reentrenamiento manual** desde el frontend
+- [ ] Verificar que el modelo se actualice después del reentrenamiento
 
 ## 📡 Endpoints de la API
 
@@ -636,6 +967,17 @@ VITE_API_URL=https://tu-backend.railway.app
 
 - `GET /api/v1/files/download/{filename}` - Descarga CSV generado
 - `DELETE /api/v1/files/{filename}` - Elimina archivo
+
+### Aprendizaje Continuo
+
+- `POST /api/v1/feedback/correct` - Corregir una clasificación
+  - Body: JSON con `image_path`, `corrected_label`, `corrected_label_name`, `user_feedback`
+  - Response: JSON con confirmación
+- `GET /api/v1/feedback/stats` - Estadísticas de feedback
+  - Response: JSON con total de imágenes, correcciones y precisión estimada
+- `POST /api/v1/model/retrain` - Disparar reentrenamiento incremental
+  - Parámetros: `epochs` (int), `min_feedback` (int)
+  - Response: JSON con resultado del reentrenamiento
 
 ## 🔧 Solución de Problemas
 
@@ -709,10 +1051,30 @@ pip install -r requirements.txt
 
 ### Problemas en Railway/Render
 
+**Error: `gunicorn: command not found`** (Render):
+
+Este error ocurre cuando Render intenta usar `gunicorn` pero no está instalado. **Solución**:
+
+1. **Verifica el Start Command en Render**:
+
+   - Ve a tu servicio en Render → Settings
+   - En **Start Command**, debe ser: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **NO debe ser**: `gunicorn` o cualquier comando con gunicorn
+
+2. **Verifica el Procfile** (si existe):
+
+   - Debe contener: `web: uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - Si tiene `gunicorn`, cámbialo a `uvicorn`
+
+3. **Si Render detecta automáticamente gunicorn**:
+   - Ignora la detección automática
+   - Configura manualmente el Start Command como se indica arriba
+
 **Build falla**:
 
 - Verifica que todas las dependencias estén en `requirements.txt`
 - Revisa los logs de build en la plataforma
+- Asegúrate de usar Python 3.11 o 3.12 (no 3.14+)
 
 **Frontend no encuentra el backend**:
 

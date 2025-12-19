@@ -13,6 +13,20 @@ import uuid
 from pathlib import Path
 import uvicorn
 from PIL import Image
+from datetime import datetime
+
+# Importar pandas al inicio para asegurar que esté disponible
+import sys
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+    print(f"✅ pandas cargado al inicio desde: {pd.__file__}")
+except ImportError as e:
+    PANDAS_AVAILABLE = False
+    print(f"❌ ERROR CRÍTICO: pandas no está instalado")
+    print(f"   Python usado: {sys.executable}")
+    print(f"   Instala con: {sys.executable} -m pip install pandas")
+    print(f"   Error: {e}")
 
 # Importar módulo de predicción
 try:
@@ -139,6 +153,21 @@ async def process_images(
                         "label_name_es": prediction["label_name_es"],
                         "confidence": round(prediction["confidence"], 4)
                     }
+                    
+                    # Guardar feedback automáticamente para aprendizaje continuo
+                    try:
+                        from feedback_storage import save_feedback
+                        save_feedback(
+                            image_path=str(temp_path),
+                            predicted_label=prediction["label"],
+                            predicted_label_name=prediction["label_name"],
+                            confidence=prediction["confidence"]
+                        )
+                    except ImportError as e:
+                        print(f"⚠️  No se pudo importar feedback_storage (pandas no disponible): {e}")
+                    except Exception as e:
+                        print(f"⚠️  No se pudo guardar feedback para {file.filename}: {e}")
+                        
                 except Exception as e:
                     print(f"Error al clasificar {file.filename}: {e}")
                     classification = {"error": str(e)}
@@ -154,6 +183,15 @@ async def process_images(
         # Generar CSV usando la función de generate_csv.py
         csv_path = await generate_csv(processed_files, options)
         
+        # Obtener estadísticas actualizadas después de procesar
+        total_images_after = 0
+        try:
+            from feedback_storage import get_statistics
+            stats = get_statistics()
+            total_images_after = stats['total_images']
+        except:
+            pass
+        
         return JSONResponse({
             "success": True,
             "message": f"Se procesaron {len(processed_files)} imágenes",
@@ -162,13 +200,15 @@ async def process_images(
                     "filename": f["filename"],
                     "size": f["size"],
                     "status": f["status"],
-                    "classification": f.get("classification")
+                    "classification": f.get("classification"),
+                    "path": f.get("path")  # Incluir ruta para correcciones
                 }
                 for f in processed_files
             ],
             "errors": errors if errors else None,
             "csv_url": f"/api/v1/files/download/{Path(csv_path).name}",
-            "csv_filename": Path(csv_path).name
+            "csv_filename": Path(csv_path).name,
+            "total_images_processed": total_images_after  # Incluir total para trigger automático
         })
     
     except Exception as e:
@@ -270,9 +310,248 @@ async def delete_file(filename: str):
     return {"message": f"Archivo {filename} eliminado correctamente"}
 
 
+from pydantic import BaseModel
+
+class CorrectionRequest(BaseModel):
+    image_path: str
+    corrected_label: int
+    corrected_label_name: str = None
+    user_feedback: str = None
+
+@app.post("/api/v1/feedback/correct")
+async def correct_classification(correction: CorrectionRequest):
+    """
+    Permite corregir una clasificación para mejorar el modelo
+    
+    Args:
+        correction: Objeto con image_path, corrected_label, etc.
+    """
+    try:
+        from feedback_storage import save_feedback, get_feedback_data
+        
+        # Buscar la predicción original en el feedback
+        df = get_feedback_data()
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No se encontró la imagen en el historial")
+        
+        # Buscar por image_path
+        matching = df[df['image_path'] == correction.image_path]
+        if matching.empty:
+            raise HTTPException(status_code=404, detail="Imagen no encontrada en el historial")
+        
+        # Obtener la última entrada para esta imagen
+        last_entry = matching.iloc[-1]
+        
+        # Guardar corrección
+        label_names = {0: "healthy", 1: "sick"}
+        label_names_es = {0: "sano", 1: "enfermo"}
+        
+        save_feedback(
+            image_path=correction.image_path,
+            predicted_label=int(last_entry['predicted_label']),
+            predicted_label_name=last_entry['predicted_label_name'],
+            confidence=float(last_entry['confidence']),
+            corrected_label=correction.corrected_label,
+            corrected_label_name=correction.corrected_label_name or label_names_es.get(correction.corrected_label, ""),
+            user_feedback=correction.user_feedback
+        )
+        
+        return {
+            "success": True,
+            "message": "Corrección guardada. El modelo se reentrenará con estos datos."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error guardando corrección: {str(e)}")
+
+
+@app.get("/api/v1/feedback/stats")
+async def get_feedback_stats():
+    """Obtiene estadísticas del feedback para aprendizaje continuo"""
+    try:
+        # Verificar que pandas esté disponible
+        if not PANDAS_AVAILABLE:
+            return {
+                "total_images": 0,
+                "corrections": 0,
+                "accuracy_estimate": 0.0,
+                "error": "pandas no está disponible. Instala con: pip install pandas"
+            }
+        
+        from feedback_storage import get_statistics
+        stats = get_statistics()
+        # Asegurar que siempre retornamos un diccionario válido
+        if not isinstance(stats, dict):
+            stats = {
+                "total_images": 0,
+                "corrections": 0,
+                "accuracy_estimate": 0.0
+            }
+        return stats
+    except ImportError as e:
+        import sys
+        error_msg = f"Error importando feedback_storage. Python: {sys.executable}, Error: {str(e)}"
+        print(f"⚠️  {error_msg}")
+        return {
+            "total_images": 0,
+            "corrections": 0,
+            "accuracy_estimate": 0.0,
+            "error": error_msg
+        }
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"⚠️  Error en get_feedback_stats: {error_detail}")
+        # Retornar valores por defecto en lugar de lanzar error
+        return {
+            "total_images": 0,
+            "corrections": 0,
+            "accuracy_estimate": 0.0,
+            "error": str(e)
+        }
+
+
+# Estado global del reentrenamiento
+retraining_state = {
+    "status": "idle",  # idle, running, completed, error
+    "progress": 0,
+    "message": "",
+    "error": None,
+    "started_at": None,
+    "completed_at": None
+}
+
+import threading
+
+def run_retraining_background(epochs: int, min_feedback: int):
+    """Ejecuta el reentrenamiento en background"""
+    global retraining_state
+    try:
+        retraining_state["status"] = "running"
+        retraining_state["progress"] = 0
+        retraining_state["message"] = "Iniciando reentrenamiento..."
+        retraining_state["error"] = None
+        retraining_state["started_at"] = datetime.now().isoformat()
+        retraining_state["completed_at"] = None
+        
+        import subprocess
+        from feedback_storage import get_statistics
+        
+        stats = get_statistics()
+        if stats['total_images'] < min_feedback:
+            retraining_state["status"] = "error"
+            retraining_state["message"] = f"Se requieren al menos {min_feedback} imágenes de feedback"
+            retraining_state["error"] = f"Actualmente hay {stats['total_images']} imágenes"
+            return
+        
+        retraining_state["progress"] = 10
+        retraining_state["message"] = "Ejecutando script de reentrenamiento..."
+        
+        # Ejecutar reentrenamiento
+        result = subprocess.run(
+            ["python", "incremental_train.py", "--epochs", str(epochs), "--min-feedback", str(min_feedback)],
+            capture_output=True,
+            text=True,
+            timeout=3600  # 1 hora máximo
+        )
+        
+        if result.returncode == 0:
+            retraining_state["status"] = "completed"
+            retraining_state["progress"] = 100
+            retraining_state["message"] = "Reentrenamiento completado exitosamente"
+            retraining_state["completed_at"] = datetime.now().isoformat()
+        else:
+            retraining_state["status"] = "error"
+            retraining_state["message"] = "Error durante el reentrenamiento"
+            retraining_state["error"] = result.stderr[:500]  # Limitar tamaño del error
+            retraining_state["completed_at"] = datetime.now().isoformat()
+            
+    except subprocess.TimeoutExpired:
+        retraining_state["status"] = "error"
+        retraining_state["message"] = "El reentrenamiento excedió el tiempo límite"
+        retraining_state["error"] = "Timeout después de 1 hora"
+        retraining_state["completed_at"] = datetime.now().isoformat()
+    except Exception as e:
+        retraining_state["status"] = "error"
+        retraining_state["message"] = f"Error ejecutando reentrenamiento: {str(e)}"
+        retraining_state["error"] = str(e)
+        retraining_state["completed_at"] = datetime.now().isoformat()
+
+@app.post("/api/v1/model/retrain")
+async def trigger_retraining(epochs: int = 10, min_feedback: int = 10):
+    """
+    Dispara el reentrenamiento incremental del modelo (en background)
+    
+    Args:
+        epochs: Número de épocas para reentrenar (default: 10)
+        min_feedback: Mínimo de imágenes de feedback requeridas (default: 10)
+    
+    Returns:
+        Estado del reentrenamiento iniciado
+    """
+    global retraining_state
+    
+    # Si ya hay un reentrenamiento en curso, no iniciar otro
+    if retraining_state["status"] == "running":
+        return {
+            "success": False,
+            "message": "Ya hay un reentrenamiento en curso",
+            "state": retraining_state
+        }
+    
+    from feedback_storage import get_statistics
+    stats = get_statistics()
+    
+    if stats['total_images'] < min_feedback:
+        return {
+            "success": False,
+            "message": f"Se requieren al menos {min_feedback} imágenes de feedback. Actualmente hay {stats['total_images']}",
+            "stats": stats
+        }
+    
+    # Iniciar reentrenamiento en background
+    thread = threading.Thread(
+        target=run_retraining_background,
+        args=(epochs, min_feedback),
+        daemon=True
+    )
+    thread.start()
+    
+    return {
+        "success": True,
+        "message": "Reentrenamiento iniciado en background",
+        "state": retraining_state
+    }
+
+@app.get("/api/v1/model/retrain/status")
+async def get_retraining_status():
+    """
+    Obtiene el estado actual del reentrenamiento
+    
+    Returns:
+        Estado del reentrenamiento (idle, running, completed, error)
+    """
+    global retraining_state
+    return retraining_state
+
+
 if __name__ == "__main__":
     import os
+    import sys
+    
+    # Verificar que pandas esté disponible antes de iniciar
+    if not PANDAS_AVAILABLE:
+        print("⚠️  ERROR: pandas no está disponible. El servidor no puede iniciar correctamente.")
+        print(f"   Python usado: {sys.executable}")
+        print("   Instala pandas con: python -m pip install pandas")
+        sys.exit(1)
+    
     port = int(os.environ.get("PORT", 8000))
+    print(f"✅ Iniciando servidor en puerto {port}")
+    print(f"   Python: {sys.executable}")
+    print(f"   Pandas disponible: {PANDAS_AVAILABLE}")
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

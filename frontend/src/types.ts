@@ -18,6 +18,7 @@ export interface ProcessedFileInfo {
   size: number;
   status: string;
   classification?: Classification | null;
+  path?: string; // Ruta de la imagen en el servidor (necesaria para correcciones)
 }
 
 export interface ProcessImagesResponse {

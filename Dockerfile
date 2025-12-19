@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Crear directorios necesarios
-RUN mkdir -p uploads outputs artifacts
+RUN mkdir -p uploads outputs artifacts feedback_data feedback_data/images artifacts/backups
 
 # Exponer puerto
 EXPOSE 8000

@@ -47,5 +47,10 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
+# Feedback y aprendizaje continuo
+feedback_data/
+dataset_incremental.csv
+artifacts/backups/
+
 # Modelo entrenado (descomentar si es muy grande)
 # artifacts/best_model.pth

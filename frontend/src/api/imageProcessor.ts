@@ -44,3 +44,60 @@ export async function downloadFile(filename: string): Promise<void> {
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
 }
+
+export interface CorrectionRequest {
+  image_path: string;
+  corrected_label: number; // 0=sano, 1=enfermo
+  corrected_label_name?: string;
+  user_feedback?: string;
+}
+
+export async function correctClassification(
+  correction: CorrectionRequest
+): Promise<{ success: boolean; message: string }> {
+  const response = await apiClient.post("/api/v1/feedback/correct", correction);
+  return response.data;
+}
+
+export interface FeedbackStats {
+  total_images: number;
+  corrections: number;
+  accuracy_estimate: number;
+}
+
+export async function getFeedbackStats(): Promise<FeedbackStats> {
+  const response = await apiClient.get<FeedbackStats>("/api/v1/feedback/stats");
+  return response.data;
+}
+
+export async function triggerRetraining(
+  epochs: number = 10,
+  minFeedback: number = 10
+): Promise<{
+  success: boolean;
+  message: string;
+  state?: any;
+  output?: string;
+  error?: string;
+}> {
+  const response = await apiClient.post("/api/v1/model/retrain", null, {
+    params: { epochs, min_feedback: minFeedback },
+  });
+  return response.data;
+}
+
+export interface RetrainingStatus {
+  status: "idle" | "running" | "completed" | "error";
+  progress: number;
+  message: string;
+  error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export async function getRetrainingStatus(): Promise<RetrainingStatus> {
+  const response = await apiClient.get<RetrainingStatus>(
+    "/api/v1/model/retrain/status"
+  );
+  return response.data;
+}
