@@ -147,6 +147,7 @@ pip install -r requirements.txt
 **Nota sobre problemas de instalación**:
 
 Si tienes problemas instalando `pydantic-core` (error sobre Rust/Cargo):
+
 - **Opción 1**: Usa Python 3.11 o 3.12 (más compatible, tiene wheels precompilados)
 - **Opción 2**: Instala pydantic desde wheels: `pip install pydantic --only-binary :all:`
 - **Opción 3**: Usa `requirements-minimal.txt`: `pip install -r requirements-minimal.txt`
@@ -288,7 +289,7 @@ Railway permite desplegar backend y frontend fácilmente.
 3. Conectar repositorio GitHub
 4. Configurar:
    - **Name**: `algoritmo-ia-backend`
-   - **Environment**: Python 3
+   - **Environment**: **Python 3** ⚠️ **Importante**: Selecciona Python 3, NO Docker (a menos que tengas un Dockerfile específico)
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 5. **Environment Variables**:
@@ -298,19 +299,33 @@ Railway permite desplegar backend y frontend fácilmente.
    ```
 6. Render asignará una URL (ej: `https://algoritmo-ia-backend.onrender.com`)
 
+**Nota sobre Environment**: Si Render detecta automáticamente Docker, cámbialo a **Python 3**. Docker solo es necesario si tienes un `Dockerfile` en la raíz del proyecto y quieres usarlo. Para un despliegue simple, Python 3 es más fácil y rápido.
+
 #### Frontend en Render
 
 1. **New** → **Static Site**
 2. Conectar repositorio GitHub
 3. Configurar:
    - **Name**: `algoritmo-ia-frontend`
-   - **Build Command**: `cd frontend && npm install && npm run build`
-   - **Publish Directory**: `frontend/dist`
+   - **Branch**: `main` (o tu rama principal)
+   - **Root Directory**: `frontend` ⚠️ **Importante**: Configura esto primero
+   - **Build Command**: `npm install && npm run build` ⚠️ Sin `cd frontend` ni `frontend/` ya que Root Directory ya está configurado
+   - **Publish Directory**: `dist` ⚠️ Solo `dist`, no `frontend/dist` (es relativo al Root Directory)
 4. **Environment Variables**:
    ```
    VITE_API_URL=https://algoritmo-ia-backend.onrender.com
    ```
 5. Render asignará una URL automáticamente
+
+**Nota importante**: Si configuraste **Root Directory** como `frontend`, entonces:
+
+- **Build Command** debe ser: `npm install && npm run build` (sin `cd frontend` ni `frontend/`)
+- **Publish Directory** debe ser: `dist` (no `frontend/dist`)
+
+Si NO configuraste Root Directory, entonces:
+
+- **Build Command**: `cd frontend && npm install && npm run build`
+- **Publish Directory**: `frontend/dist`
 
 ### Opción 3: Vercel (Frontend) + Railway/Render (Backend)
 
@@ -535,6 +550,7 @@ Este error ocurre cuando `pydantic-core` no tiene wheels precompilados para tu v
 **Soluciones**:
 
 1. **Usar Python 3.11 o 3.12** (recomendado):
+
    ```bash
    # Crear nuevo entorno virtual con Python 3.11/3.12
    python3.11 -m venv venv
@@ -543,12 +559,14 @@ Este error ocurre cuando `pydantic-core` no tiene wheels precompilados para tu v
    ```
 
 2. **Instalar pydantic desde wheels precompilados**:
+
    ```bash
    pip install pydantic --only-binary :all:
    pip install -r requirements.txt
    ```
 
 3. **Usar requirements-minimal.txt** (versiones flexibles):
+
    ```bash
    pip install -r requirements-minimal.txt
    ```
