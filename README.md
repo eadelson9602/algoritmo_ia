@@ -210,35 +210,105 @@ Puedes crear scripts para iniciar ambos servicios simultáneamente.
 
 ## 🧠 Entrenamiento del Modelo
 
-Si quieres entrenar tu propio modelo o reentrenar con más datos:
+⚠️ **IMPORTANTE**: El entrenamiento del modelo **NO se hace en Render** ni en otras plataformas de despliegue. Render es solo para desplegar la aplicación, no para entrenar modelos.
 
-### Paso 1: Preparar Dataset
+### ¿Dónde entrenar el modelo?
 
-Organiza tus imágenes en:
+Tienes varias opciones para entrenar el modelo:
+
+#### Opción 1: Entrenar Localmente (Recomendado para empezar)
+
+**Ventajas**: Gratis, control total, fácil de depurar
+
+**Pasos**:
+
+1. **Preparar Dataset**: Organiza tus imágenes en:
+
+   ```
+   dataset/
+   ├── healthy/    # Gatos sanos (label: 0)
+   └── sick/       # Gatos enfermos (label: 1)
+   ```
+
+2. **Generar CSV**:
+
+   ```bash
+   python generate_csv.py
+   ```
+
+   Esto crea `dataset.csv` con las rutas y etiquetas.
+
+3. **Entrenar Modelo**:
+
+   ```bash
+   python train_cats_pytorch.py
+   ```
+
+   El modelo entrenado se guardará en `artifacts/best_model.pth`
+
+4. **Subir modelo al repositorio**:
+
+   ```bash
+   git add artifacts/best_model.pth
+   git commit -m "Add trained model"
+   git push
+   ```
+
+5. **Render desplegará automáticamente** el modelo junto con el código.
+
+#### Opción 2: Google Colab (Gratis con GPU)
+
+**Ventajas**: GPU gratuita, no necesitas instalar nada localmente
+
+**Pasos**:
+
+1. Abre [Google Colab](https://colab.research.google.com/)
+2. Sube tu proyecto o clona desde GitHub
+3. Ejecuta los mismos pasos (generate_csv.py y train_cats_pytorch.py)
+4. Descarga `artifacts/best_model.pth` desde Colab
+5. Súbelo a tu repositorio local y haz commit
+
+#### Opción 3: Kaggle Notebooks (Gratis con GPU)
+
+**Ventajas**: GPU gratuita, comunidad activa
+
+**Pasos similares a Colab**
+
+#### Opción 4: VPS con GPU (AWS, Google Cloud, etc.)
+
+**Ventajas**: Más control, mejor para datasets grandes
+
+**Desventajas**: Requiere configuración y puede tener costos
+
+### Proceso Completo de Entrenamiento y Despliegue
 
 ```
-dataset/
-├── healthy/    # Gatos sanos (label: 0)
-└── sick/       # Gatos enfermos (label: 1)
+1. Entrenar modelo (local/Colab/Kaggle)
+   ↓
+2. Obtener artifacts/best_model.pth
+   ↓
+3. Subir modelo al repositorio Git
+   ↓
+4. Hacer push al repositorio
+   ↓
+5. Render detecta cambios y despliega automáticamente
+   ↓
+6. El modelo ya está disponible en producción
 ```
 
-### Paso 2: Generar CSV
+### Requisitos para el Entrenamiento
 
-```bash
-python generate_csv.py
-```
+- **Mínimo 3 imágenes** (para train/val/test split)
+- **Recomendado**: Al menos 50-100 imágenes por clase para mejores resultados
+- **Python 3.11 o 3.12** con PyTorch instalado
+- **GPU opcional pero recomendada** para entrenamientos más rápidos
 
-Esto crea `dataset.csv` con las rutas y etiquetas.
+### Notas Importantes
 
-### Paso 3: Entrenar Modelo
-
-```bash
-python train_cats_pytorch.py
-```
-
-El modelo entrenado se guardará en `artifacts/best_model.pth`
-
-**Nota**: Si no tienes un modelo entrenado, la aplicación funcionará pero no clasificará las imágenes (mostrará "no clasificado").
+- **Render NO entrena modelos**: Render solo despliega el modelo ya entrenado
+- **El modelo debe estar en el repositorio**: Render copia todo el código, incluyendo `artifacts/best_model.pth`
+- **Si no hay modelo**: La aplicación funcionará pero mostrará "no clasificado" para todas las imágenes
+- **Modelos grandes**: Si el modelo es >100MB, considera usar Git LFS o subirlo manualmente después del despliegue
 
 ## 🌐 Despliegue en Producción
 
@@ -494,21 +564,49 @@ VITE_API_URL=https://tu-backend.railway.app
 
 ### Incluir el Modelo Entrenado en el Despliegue
 
-Para que la clasificación funcione en producción, necesitas incluir el modelo entrenado:
+⚠️ **PASO CRÍTICO**: Para que la clasificación funcione en producción, el modelo debe estar entrenado e incluido en el repositorio.
 
-1. **Asegúrate de tener** `artifacts/best_model.pth` en tu repositorio
-2. **Si usas Git**: El archivo debe estar commiteado
+**Proceso**:
+
+1. **Entrenar el modelo** (ver sección [Entrenamiento del Modelo](#-entrenamiento-del-modelo))
+
+   - Entrena localmente, en Colab, o en otra plataforma
+   - Obtén `artifacts/best_model.pth`
+
+2. **Subir el modelo al repositorio**:
+
    ```bash
    git add artifacts/best_model.pth
    git commit -m "Add trained model"
    git push
    ```
-3. **Si el modelo es muy grande** (>100MB):
-   - Considera usar Git LFS: `git lfs track "*.pth"`
-   - O sube el modelo manualmente después del despliegue
-   - O usa un servicio de almacenamiento (S3, etc.)
 
-**Nota**: Si no incluyes el modelo, la aplicación funcionará pero mostrará "no clasificado" para todas las imágenes.
+3. **Render desplegará automáticamente** el modelo junto con el código
+
+**Si el modelo es muy grande** (>100MB):
+
+- **Opción 1**: Usar Git LFS (recomendado)
+
+  ```bash
+  git lfs install
+  git lfs track "*.pth"
+  git add .gitattributes
+  git add artifacts/best_model.pth
+  git commit -m "Add trained model with LFS"
+  git push
+  ```
+
+- **Opción 2**: Subir manualmente después del despliegue
+
+  - Despliega primero sin el modelo
+  - Usa el shell de Render o SCP para subir el archivo
+  - Colócalo en `artifacts/best_model.pth`
+
+- **Opción 3**: Usar almacenamiento externo (S3, Google Cloud Storage)
+  - Modifica `predict.py` para descargar el modelo desde el almacenamiento
+  - Más complejo pero escalable
+
+**Nota**: Si no incluyes el modelo, la aplicación funcionará pero mostrará "no clasificado" para todas las imágenes. El backend mostrará un mensaje de advertencia en los logs.
 
 ### Checklist de Despliegue
 
