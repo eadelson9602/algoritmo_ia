@@ -1,0 +1,11 @@
+# Versión mínima sin versiones fijas (para evitar problemas de compilación)
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+pydantic
+pydantic-settings
+torch
+torchvision
+Pillow
+numpy<2.0.0

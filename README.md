@@ -1,293 +1,634 @@
-# 🐱 Clasificación de Gatos: Healthy vs Sick
+# 🐱 Procesador de Imágenes con IA - Clasificación de Gatos
 
-Este proyecto implementa un modelo de clasificación de imágenes usando PyTorch para distinguir entre gatos sanos y enfermos.
+Aplicación web completa para clasificar imágenes de gatos como "sanos" (healthy) o "enfermos" (sick) usando inteligencia artificial. Incluye un modelo de deep learning entrenado con PyTorch, una API REST con FastAPI y un frontend React moderno.
 
 ## 📋 Tabla de Contenidos
 
-- [Requisitos](#requisitos)
-- [Instalación de Paquetes](#instalación-de-paquetes)
+- [Descripción del Proyecto](#descripción-del-proyecto)
+- [Características](#características)
 - [Estructura del Proyecto](#estructura-del-proyecto)
-- [Orden de Ejecución](#orden-de-ejecución)
-- [Uso Detallado](#uso-detallado)
-- [Resultados](#resultados)
+- [Instalación y Configuración](#instalación-y-configuración)
+- [Ejecución Local](#ejecución-local)
+- [Despliegue en Producción](#despliegue-en-producción)
+- [Uso de la Aplicación](#uso-de-la-aplicación)
+- [Entrenamiento del Modelo](#entrenamiento-del-modelo)
 - [Solución de Problemas](#solución-de-problemas)
 
-## 🔧 Requisitos
+## 🎯 Descripción del Proyecto
 
-- Python 3.7 o superior
-- pip (gestor de paquetes de Python)
-- Sistema operativo: Windows, Linux o macOS
+Este proyecto es una aplicación web completa que permite:
 
-## 📦 Instalación de Paquetes
+1. **Entrenar un modelo de IA** para clasificar gatos como sanos o enfermos
+2. **Procesar imágenes** subidas por usuarios a través de una interfaz web
+3. **Clasificar automáticamente** cada imagen usando el modelo entrenado
+4. **Generar archivos CSV** con los resultados de la clasificación
+5. **Visualizar resultados** en una tabla interactiva o lista
 
-### Opción 1: Instalación Individual
+### Arquitectura
 
-```bash
-pip install torch torchvision
-pip install pandas
-pip install numpy
-pip install Pillow
-pip install scikit-learn
-pip install matplotlib
+```
+┌─────────────────┐
+│  Frontend React │  (Puerto 3001)
+│  (Vite + React) │
+└────────┬────────┘
+         │ HTTP Requests
+         │
+┌────────▼────────┐
+│  Backend FastAPI│  (Puerto 8000)
+│  (Python)       │
+└────────┬────────┘
+         │
+         │ Usa modelo entrenado
+         │
+┌────────▼────────┐
+│  Modelo PyTorch │
+│  (SimpleCNN)    │
+└─────────────────┘
 ```
 
-### Opción 2: Instalación en un Solo Comando
+## ✨ Características
 
-```bash
-pip install torch torchvision pandas numpy Pillow scikit-learn matplotlib
-```
+### Backend (FastAPI)
 
-### Verificar Instalación
+- ✅ API REST para procesar múltiples imágenes
+- ✅ Clasificación automática con modelo de IA
+- ✅ Generación de archivos CSV con resultados
+- ✅ Validación de tipos y tamaños de archivo
+- ✅ CORS configurado para frontend
+- ✅ Documentación interactiva (Swagger/ReDoc)
 
-Para verificar que todos los paquetes están instalados correctamente:
+### Frontend (React)
 
-```bash
-python -c "import torch; import pandas; import numpy; from PIL import Image; from sklearn.metrics import confusion_matrix; import matplotlib.pyplot as plt; print('✓ Todos los paquetes están instalados correctamente')"
-```
+- ✅ Interfaz moderna y responsive
+- ✅ Carga múltiple de imágenes (drag & drop)
+- ✅ Visualización de resultados en tabla y lista
+- ✅ Descarga de CSV con resultados
+- ✅ Indicadores de progreso
+- ✅ Manejo de errores
+
+### Modelo de IA
+
+- ✅ Red neuronal convolucional (CNN) con PyTorch
+- ✅ Clasificación binaria: sano (0) vs enfermo (1)
+- ✅ Data augmentation para mejorar entrenamiento
+- ✅ Métricas de evaluación (precisión, recall, F1-score)
 
 ## 📁 Estructura del Proyecto
 
 ```
-algoritmo/
+algoritmo_ia/
 │
-├── dataset/                    # Carpeta principal de imágenes
-│   ├── healthy/                # Imágenes de gatos sanos
-│   │   ├── gato1.jpg
-│   │   ├── gato2.jpg
-│   │   └── gato3.jpg
-│   └── sick/                   # Imágenes de gatos enfermos
-│       ├── gato4.jpg
-│       ├── gato5.jpg
-│       └── gato6.jpg
+├── main.py                    # Backend API FastAPI
+├── predict.py                 # Módulo de predicción con modelo IA
+├── generate_csv.py            # Script para generar CSV desde dataset/
+├── train_cats_pytorch.py      # Script para entrenar el modelo
+├── requirements.txt           # Dependencias Python
 │
-├── generate_csv.py            # Script 1: Genera el archivo CSV
-├── train_cats_pytorch.py      # Script 2: Entrena el modelo
-├── dataset.csv                # Archivo CSV generado (se crea automáticamente)
+├── frontend/                  # Frontend React
+│   ├── src/
+│   │   ├── api/              # Cliente API
+│   │   ├── components/        # Componentes React
+│   │   ├── hooks/             # Custom hooks
+│   │   ├── pages/             # Páginas
+│   │   └── types.ts           # Tipos TypeScript
+│   ├── package.json
+│   └── vite.config.ts
 │
-├── artifacts/                 # Carpeta de resultados (se crea automáticamente)
-│   ├── best_model.pth         # Modelo entrenado guardado
+├── dataset/                   # Dataset de entrenamiento (opcional)
+│   ├── healthy/               # Imágenes de gatos sanos
+│   └── sick/                  # Imágenes de gatos enfermos
+│
+├── artifacts/                 # Modelo entrenado (se crea al entrenar)
+│   ├── best_model.pth         # Modelo guardado
 │   ├── loss.png               # Gráfica de pérdida
 │   └── acc.png                # Gráfica de precisión
 │
-├── training.log               # Archivo de log del entrenamiento
+├── uploads/                   # Archivos temporales subidos (se crea automáticamente)
+├── outputs/                   # CSVs generados (se crea automáticamente)
+│
 └── README.md                  # Este archivo
 ```
 
-### Descripción de Carpetas
+## 🚀 Instalación y Configuración
 
-- **`dataset/`**: Contiene las imágenes organizadas en subcarpetas:
-  - `healthy/`: Imágenes de gatos sanos (label: 0)
-  - `sick/`: Imágenes de gatos enfermos (label: 1)
-- **`artifacts/`**: Se crea automáticamente y contiene:
-  - El modelo entrenado (`best_model.pth`)
-  - Gráficas de entrenamiento (`loss.png`, `acc.png`)
+### Prerrequisitos
 
-## 🚀 Orden de Ejecución
+- **Python 3.11 o 3.12** (recomendado) para el backend
+  - Python 3.14+ puede tener problemas con algunas dependencias
+  - Si usas Python 3.14+, ver [Solución de Problemas](#problemas-de-instalación)
+- **Node.js 18+** y npm para el frontend
+- **Git** (opcional)
 
-### Paso 1: Preparar las Imágenes
+### 1. Clonar o descargar el proyecto
 
-Asegúrate de que tus imágenes estén organizadas en la estructura correcta:
+```bash
+cd "C:\Users\eadel\OneDrive\Documents\universidad\Electiva Inteligencia artificial avanzada\algoritmo_ia"
+```
+
+### 2. Configurar Backend
+
+```bash
+# Crear entorno virtual
+python -m venv venv
+
+# Activar entorno virtual
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Actualizar pip, setuptools y wheel
+python -m pip install --upgrade pip setuptools wheel
+
+# Instalar dependencias
+pip install -r requirements.txt
+```
+
+**Nota sobre problemas de instalación**:
+
+Si tienes problemas instalando `pydantic-core` (error sobre Rust/Cargo):
+- **Opción 1**: Usa Python 3.11 o 3.12 (más compatible, tiene wheels precompilados)
+- **Opción 2**: Instala pydantic desde wheels: `pip install pydantic --only-binary :all:`
+- **Opción 3**: Usa `requirements-minimal.txt`: `pip install -r requirements-minimal.txt`
+- **Opción 4**: Si usas Anaconda, puedes instalar desde conda: `conda install -c conda-forge pydantic`
+
+### 3. Configurar Frontend
+
+```bash
+cd frontend
+
+# Instalar dependencias
+npm install
+
+# Crear archivo de configuración
+echo "VITE_API_URL=http://localhost:8000" > .env
+```
+
+## 🏃 Ejecución Local
+
+### Opción 1: Ejecutar Backend y Frontend por separado
+
+**Terminal 1 - Backend:**
+
+```bash
+# Desde la raíz del proyecto
+python main.py
+```
+
+El backend estará disponible en: `http://localhost:8000`
+
+- API: `http://localhost:8000`
+- Documentación: `http://localhost:8000/docs`
+
+**Terminal 2 - Frontend:**
+
+```bash
+# Desde la carpeta frontend
+cd frontend
+npm run dev
+```
+
+El frontend estará disponible en: `http://localhost:3001`
+
+### Opción 2: Usar scripts de inicio rápido
+
+Puedes crear scripts para iniciar ambos servicios simultáneamente.
+
+## 🎨 Uso de la Aplicación
+
+1. **Abrir la aplicación**: Navega a `http://localhost:3001`
+2. **Subir imágenes**: Arrastra imágenes o haz clic para seleccionar
+3. **Procesar**: Haz clic en "Procesar Imágenes"
+4. **Ver resultados**: Los resultados se muestran en tabla o lista
+5. **Descargar CSV**: Haz clic en "Descargar CSV" para obtener los resultados
+
+### Formato de Imágenes Soportado
+
+- JPG, JPEG, PNG, GIF, BMP, WEBP
+- Tamaño máximo: 10MB por archivo
+
+## 🧠 Entrenamiento del Modelo
+
+Si quieres entrenar tu propio modelo o reentrenar con más datos:
+
+### Paso 1: Preparar Dataset
+
+Organiza tus imágenes en:
 
 ```
 dataset/
-├── healthy/
-│   └── [imágenes de gatos sanos]
-└── sick/
-    └── [imágenes de gatos enfermos]
+├── healthy/    # Gatos sanos (label: 0)
+└── sick/       # Gatos enfermos (label: 1)
 ```
 
-**Formato de imágenes soportado**: `.jpg`, `.jpeg`, `.png`
-
-### Paso 2: Generar el Archivo CSV
-
-Ejecuta el primer script para crear el archivo `dataset.csv`:
+### Paso 2: Generar CSV
 
 ```bash
 python generate_csv.py
 ```
 
-**¿Qué hace este script?**
+Esto crea `dataset.csv` con las rutas y etiquetas.
 
-- Recorre las carpetas `healthy/` y `sick/`
-- Crea un archivo CSV con las rutas de las imágenes y sus etiquetas
-- Formato del CSV: `image_path,label,timestamp,source`
-  - `label`: 0 para healthy, 1 para sick
-
-**Salida esperada:**
-
-```
-CSV creado exitosamente: dataset.csv
-Total de imágenes procesadas: 6
-```
-
-### Paso 3: Entrenar el Modelo
-
-Ejecuta el script de entrenamiento:
+### Paso 3: Entrenar Modelo
 
 ```bash
 python train_cats_pytorch.py
 ```
 
-**¿Qué hace este script?**
+El modelo entrenado se guardará en `artifacts/best_model.pth`
 
-1. Carga el archivo `dataset.csv`
-2. Normaliza las rutas de las imágenes
-3. Verifica que todas las imágenes existan
-4. Divide los datos en:
-   - **Train**: 70% de las imágenes
-   - **Validation**: 15% de las imágenes
-   - **Test**: 15% de las imágenes
-5. Entrena el modelo por 20 épocas
-6. Guarda el mejor modelo en `artifacts/best_model.pth`
-7. Genera gráficas de pérdida y precisión
-8. Evalúa el modelo en el conjunto de test
+**Nota**: Si no tienes un modelo entrenado, la aplicación funcionará pero no clasificará las imágenes (mostrará "no clasificado").
 
-**Salida esperada:**
+## 🌐 Despliegue en Producción
 
+### Opción 1: Railway (Recomendado - Más Fácil)
+
+Railway permite desplegar backend y frontend fácilmente.
+
+#### Backend en Railway
+
+1. **Crear cuenta** en [railway.app](https://railway.app)
+2. **Nuevo proyecto** → "Deploy from GitHub repo" (o "Empty Project" para subir código)
+3. **Agregar servicio** → "GitHub Repo" o "Empty Service"
+4. **Si usas GitHub**: Selecciona tu repositorio
+5. **Configurar servicio**:
+   - Railway detectará automáticamente Python
+   - **Variables de entorno** (Settings → Variables):
+     ```
+     PORT=8000
+     ALLOWED_ORIGINS=https://tu-frontend.railway.app
+     ```
+6. Railway asignará una URL automáticamente (ej: `https://tu-backend.up.railway.app`)
+7. **Copiar la URL** del backend para usarla en el frontend
+
+#### Frontend en Railway
+
+1. **Nuevo servicio** en el mismo proyecto Railway
+2. **Agregar servicio** → "GitHub Repo" (mismo repo) o "Empty Service"
+3. **Configurar**:
+   - **Root Directory**: `frontend`
+   - Railway detectará Node.js automáticamente
+4. **Variables de entorno** (Settings → Variables):
+   ```
+   VITE_API_URL=https://tu-backend.up.railway.app
+   PORT=3001
+   ```
+5. **Build Settings** (Settings → Build):
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npx serve -s dist -l $PORT`
+
+**Nota importante**: Railway reconstruye automáticamente cuando cambias variables de entorno. Asegúrate de que `VITE_API_URL` tenga la URL correcta del backend antes del build.
+
+### Opción 2: Render
+
+#### Backend en Render
+
+1. Crear cuenta en [render.com](https://render.com)
+2. **New** → **Web Service**
+3. Conectar repositorio GitHub
+4. Configurar:
+   - **Name**: `algoritmo-ia-backend`
+   - **Environment**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. **Environment Variables**:
+   ```
+   PORT=8000
+   ALLOWED_ORIGINS=https://tu-frontend.onrender.com
+   ```
+6. Render asignará una URL (ej: `https://algoritmo-ia-backend.onrender.com`)
+
+#### Frontend en Render
+
+1. **New** → **Static Site**
+2. Conectar repositorio GitHub
+3. Configurar:
+   - **Name**: `algoritmo-ia-frontend`
+   - **Build Command**: `cd frontend && npm install && npm run build`
+   - **Publish Directory**: `frontend/dist`
+4. **Environment Variables**:
+   ```
+   VITE_API_URL=https://algoritmo-ia-backend.onrender.com
+   ```
+5. Render asignará una URL automáticamente
+
+### Opción 3: Vercel (Frontend) + Railway/Render (Backend)
+
+Esta opción combina Vercel para el frontend (muy rápido y fácil) con Railway o Render para el backend.
+
+#### Frontend en Vercel
+
+1. Crear cuenta en [vercel.com](https://vercel.com)
+2. **New Project** → Importar repositorio GitHub
+3. Configurar:
+   - **Framework Preset**: Vite
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build` (automático con Vite)
+   - **Output Directory**: `dist` (automático)
+4. **Environment Variables** (Settings → Environment Variables):
+   ```
+   VITE_API_URL=https://tu-backend.railway.app
+   ```
+   **Importante**: Agrega esta variable para **Production**, **Preview** y **Development**
+5. **Deploy**: Vercel desplegará automáticamente
+6. Vercel asignará una URL (ej: `https://algoritmo-ia.vercel.app`)
+
+**Ventajas de Vercel**:
+
+- Despliegue muy rápido
+- CDN global automático
+- Reconstrucción automática en cada push
+- Preview deployments para cada PR
+
+### Opción 4: Docker Compose (VPS/Cloud/Servidor Propio)
+
+#### Backend Dockerfile
+
+Crear `Dockerfile` en la raíz:
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar e instalar dependencias Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p uploads outputs artifacts
+
+# Exponer puerto
+EXPOSE 8000
+
+# Comando de inicio
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
 ```
-Usando dispositivo: cpu
-Cargando CSV: dataset.csv
-Total de imágenes: 6
-Train: 4, Val: 1, Test: 1
 
-Iniciando entrenamiento...
-Epoch 1/20 - train_loss 0.xxxx train_acc 0.xxxx - val_loss 0.xxxx val_acc 0.xxxx
-Epoch 2/20 - train_loss 0.xxxx train_acc 0.xxxx - val_loss 0.xxxx val_acc 0.xxxx
-...
-Test loss: 0.xxxx
-              precision    recall  f1-score   support
+#### Frontend Dockerfile
 
-        sano       1.00      1.00      1.00         1
-     enfermo       1.00      1.00      1.00         1
+Crear `frontend/Dockerfile`:
 
-Entrenamiento completado exitosamente!
+```dockerfile
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 ```
 
-## 📖 Uso Detallado
+#### docker-compose.yml
 
-### Configuración del Entrenamiento
+```yaml
+version: "3.8"
 
-Puedes modificar los parámetros en `train_cats_pytorch.py`:
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./artifacts:/app/artifacts
+    restart: unless-stopped
 
-```python
-IMG_SIZE = 128      # Tamaño de las imágenes (128x128 píxeles)
-BATCH = 16          # Tamaño del batch
-EPOCHS = 20         # Número de épocas de entrenamiento
-OUT_DIR = "artifacts"  # Directorio de salida
+  frontend:
+    build: ./frontend
+    ports:
+      - "3001:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
 ```
 
-### Ejecución Completa desde Cero
+**Desplegar**:
 
 ```bash
-# 1. Navegar al directorio del proyecto
-cd "ruta/a/algoritmo"
-
-# 2. Generar el CSV
-python generate_csv.py
-
-# 3. Entrenar el modelo
-python train_cats_pytorch.py
+docker-compose up -d
 ```
 
-## 📊 Resultados
-
-Después de ejecutar `train_cats_pytorch.py`, encontrarás:
-
-### Archivos Generados
-
-1. **`artifacts/best_model.pth`**
-
-   - Modelo entrenado guardado
-   - Puede cargarse con: `torch.load('artifacts/best_model.pth')`
-
-2. **`artifacts/loss.png`**
-
-   - Gráfica que muestra la evolución de la pérdida durante el entrenamiento
-   - Compara train_loss vs val_loss
-
-3. **`artifacts/acc.png`**
-
-   - Gráfica que muestra la evolución de la precisión durante el entrenamiento
-   - Compara train_acc vs val_acc
-
-4. **`training.log`**
-   - Archivo de texto con todo el registro del entrenamiento
-   - Incluye métricas de cada época
-
-### Métricas de Evaluación
-
-El script muestra al final:
-
-- **Test Loss**: Pérdida en el conjunto de test
-- **Classification Report**: Precisión, recall y F1-score por clase
-- **Confusion Matrix**: Matriz de confusión
-
-## 🔍 Solución de Problemas
-
-### Error: "No module named 'torch'"
-
-**Solución**: Instala PyTorch:
+**Ver logs**:
 
 ```bash
-pip install torch torchvision
+docker-compose logs -f
 ```
 
-### Error: "No hay suficientes imágenes"
+**Detener**:
 
-**Solución**: Asegúrate de tener al menos 3 imágenes en total. Con solo 6 imágenes, la división será:
+```bash
+docker-compose down
+```
 
-- Train: 4 imágenes
-- Val: 1 imagen
-- Test: 1 imagen
+**Actualizar**:
 
-### Error: "imágenes no encontradas"
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
 
-**Solución**:
+### Configuración de Variables de Entorno en Producción
 
-1. Verifica que las rutas en `dataset.csv` sean correctas
-2. Asegúrate de ejecutar los scripts desde el directorio `algoritmo/`
-3. El script normaliza automáticamente las rutas (Windows/Linux)
+#### Backend
 
-### Error: "CUDA out of memory"
+**Railway/Render**:
 
-**Solución**:
+```env
+PORT=8000
+ALLOWED_ORIGINS=https://tu-frontend.vercel.app,https://tu-dominio.com
+```
 
-- Reduce el tamaño del batch: `BATCH = 8` o `BATCH = 4`
-- Reduce el tamaño de las imágenes: `IMG_SIZE = 64`
+**Nota**: En Railway y Render, `PORT` se asigna automáticamente, pero puedes especificarlo.
 
-### El script se ejecuta pero no veo salida
+#### Frontend
 
-**Solución**:
+**Vercel/Railway/Render**:
 
-- Revisa el archivo `training.log` que se genera automáticamente
-- Todos los mensajes se guardan ahí
+```env
+VITE_API_URL=https://tu-backend.railway.app
+```
 
-### Problemas con rutas en Windows
+**Importante**:
 
-**Solución**: El script maneja automáticamente las barras invertidas (`\`) y barras normales (`/`). Si tienes problemas:
+- En Vercel, agrega la variable en **Settings → Environment Variables**
+- Selecciona todos los ambientes (Production, Preview, Development)
+- Vercel reconstruirá automáticamente después de agregar variables
 
-1. Asegúrate de que el CSV use rutas relativas: `dataset/healthy/gato1.jpg`
-2. Ejecuta el script desde el directorio `algoritmo/`
+### Incluir el Modelo Entrenado en el Despliegue
 
-## 📝 Notas Importantes
+Para que la clasificación funcione en producción, necesitas incluir el modelo entrenado:
 
-1. **Dataset pequeño**: Con solo 6 imágenes, el modelo puede sobreajustarse fácilmente. Se recomienda tener al menos 50-100 imágenes por clase para mejores resultados. En pruebas con 6 imágenes (3 sanas, 3 enfermas), el modelo alcanzó 100% de precisión, pero esto puede indicar sobreajuste.
+1. **Asegúrate de tener** `artifacts/best_model.pth` en tu repositorio
+2. **Si usas Git**: El archivo debe estar commiteado
+   ```bash
+   git add artifacts/best_model.pth
+   git commit -m "Add trained model"
+   git push
+   ```
+3. **Si el modelo es muy grande** (>100MB):
+   - Considera usar Git LFS: `git lfs track "*.pth"`
+   - O sube el modelo manualmente después del despliegue
+   - O usa un servicio de almacenamiento (S3, etc.)
 
-2. **Data Augmentation**: El script incluye aumentación de datos (rotación, espejo) para mejorar el entrenamiento con datasets pequeños.
+**Nota**: Si no incluyes el modelo, la aplicación funcionará pero mostrará "no clasificado" para todas las imágenes.
 
-3. **División de datos**: Con muy pocas imágenes, la división 70/15/15 puede resultar en conjuntos muy pequeños. Con 6 imágenes: Train: 4, Val: 1, Test: 1. Considera ajustar estos porcentajes si tienes más datos.
+### Checklist de Despliegue
 
-4. **GPU**: Si tienes una GPU compatible con CUDA, el script la usará automáticamente. De lo contrario, usará CPU.
+- [ ] Backend desplegado y accesible
+- [ ] Frontend configurado con `VITE_API_URL` correcta
+- [ ] CORS configurado en backend con URL del frontend
+- [ ] Modelo entrenado (`artifacts/best_model.pth`) incluido en el despliegue
+- [ ] Variables de entorno configuradas
+- [ ] Probar subida de imágenes
+- [ ] Probar descarga de CSV
+- [ ] Verificar que las clasificaciones funcionen
 
-5. **Tiempo de ejecución**: Con 6 imágenes y 20 épocas, el entrenamiento toma aproximadamente 1-3 minutos en CPU.
+## 📡 Endpoints de la API
+
+### Health Check
+
+- `GET /` - Estado del servicio
+- `GET /health` - Health check
+
+### Procesamiento
+
+- `POST /api/v1/images/process` - Procesa imágenes y genera CSV
+  - Body: `multipart/form-data` con archivos
+  - Response: JSON con clasificaciones y URL del CSV
+
+### Descarga
+
+- `GET /api/v1/files/download/{filename}` - Descarga CSV generado
+- `DELETE /api/v1/files/{filename}` - Elimina archivo
+
+## 🔧 Solución de Problemas
+
+### Problemas de Instalación
+
+**Error**: `pydantic-core` requiere Rust/Cargo para compilar
+
+Este error ocurre cuando `pydantic-core` no tiene wheels precompilados para tu versión de Python (especialmente Python 3.14+).
+
+**Soluciones**:
+
+1. **Usar Python 3.11 o 3.12** (recomendado):
+   ```bash
+   # Crear nuevo entorno virtual con Python 3.11/3.12
+   python3.11 -m venv venv
+   # o
+   python3.12 -m venv venv
+   ```
+
+2. **Instalar pydantic desde wheels precompilados**:
+   ```bash
+   pip install pydantic --only-binary :all:
+   pip install -r requirements.txt
+   ```
+
+3. **Usar requirements-minimal.txt** (versiones flexibles):
+   ```bash
+   pip install -r requirements-minimal.txt
+   ```
+
+4. **Si usas Anaconda**:
+   ```bash
+   conda install -c conda-forge pydantic fastapi uvicorn
+   pip install torch torchvision
+   ```
+
+### Backend no inicia
+
+**Error**: `ModuleNotFoundError: No module named 'torch'`
+
+```bash
+pip install -r requirements.txt
+```
+
+**Error**: `Modelo no encontrado`
+
+- Asegúrate de tener `artifacts/best_model.pth`
+- O entrena el modelo primero: `python train_cats_pytorch.py`
+
+### Frontend no se conecta al backend
+
+**Error de CORS**:
+
+- Verifica que `ALLOWED_ORIGINS` en `main.py` incluya la URL del frontend
+- En desarrollo: `["http://localhost:3001"]`
+- En producción: `["https://tu-frontend.vercel.app"]`
+
+**Error de conexión**:
+
+- Verifica `VITE_API_URL` en `.env` del frontend
+- Asegúrate de que el backend esté corriendo
+
+### El modelo no clasifica
+
+- Verifica que `artifacts/best_model.pth` exista
+- Revisa los logs del backend para errores de carga del modelo
+- Asegúrate de que PyTorch esté instalado: `pip install torch torchvision`
+
+### Problemas en Railway/Render
+
+**Build falla**:
+
+- Verifica que todas las dependencias estén en `requirements.txt`
+- Revisa los logs de build en la plataforma
+
+**Frontend no encuentra el backend**:
+
+- Usa la URL completa del backend en `VITE_API_URL`
+- Reconstruye el frontend después de cambiar variables de entorno
+
+## 📊 Resultados y CSV
+
+El CSV generado tiene el formato:
+
+```csv
+image_path,label,timestamp,source,label_name
+uploads/imagen1.jpg,0,2024-01-15T10:30:00,api_upload,sano
+uploads/imagen2.jpg,1,2024-01-15T10:30:01,api_upload,enfermo
+```
+
+- `label`: 0 para sano, 1 para enfermo
+- `label_name`: "sano" o "enfermo" en español
 
 ## 🎯 Próximos Pasos
 
-- Agregar más imágenes al dataset
-- Experimentar con diferentes arquitecturas de red
-- Ajustar hiperparámetros (learning rate, batch size, etc.)
-- Implementar early stopping
-- Agregar más técnicas de data augmentation
+- [ ] Agregar autenticación si es necesario
+- [ ] Implementar rate limiting
+- [ ] Agregar más métricas de evaluación
+- [ ] Mejorar el modelo con más datos
+- [ ] Agregar historial de procesamientos
+
+## 📚 Documentación Adicional
+
+- **API Docs**: `http://localhost:8000/docs` (cuando el backend esté corriendo)
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
 
 ## 📄 Licencia
 
@@ -295,4 +636,4 @@ Este proyecto es para fines educativos.
 
 ---
 
-**¿Problemas?** Revisa el archivo `training.log` para ver los detalles del error.
+**¿Problemas?** Revisa los logs del backend o frontend, o consulta la sección de [Solución de Problemas](#solución-de-problemas).

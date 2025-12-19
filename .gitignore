@@ -31,3 +31,21 @@ Thumbs.db
 dataset.csv
 dataset/healthy/*
 dataset/sick/*
+
+# Directorios de la API
+uploads/
+outputs/
+*.csv
+
+# Variables de entorno
+.env
+.env.local
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Modelo entrenado (descomentar si es muy grande)
+# artifacts/best_model.pth

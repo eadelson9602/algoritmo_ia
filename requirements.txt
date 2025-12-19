@@ -1,0 +1,17 @@
+# Backend API
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+python-dotenv>=1.0.1
+
+# Validación de datos (si hay problemas, instala versiones precompiladas)
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Procesamiento de imágenes
+Pillow>=10.0.0
+numpy>=1.24.0,<2.0.0
