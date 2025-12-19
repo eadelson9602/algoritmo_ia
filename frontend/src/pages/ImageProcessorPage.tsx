@@ -47,14 +47,25 @@ export default function ImageProcessorPage() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Sparkles className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold">
+            <h1 className="text-3xl font-bold text-blue-600">
               Procesador de Imágenes con IA
             </h1>
           </div>
-          <p className="text-gray-600">
-            Sube imágenes para procesarlas con inteligencia artificial y genera
-            un CSV con los resultados
-          </p>
+          <div className="space-y-2">
+            <p className="text-gray-700 text-lg">
+              Sistema de clasificación automática de imágenes de gatos usando
+              inteligencia artificial
+            </p>
+            <p className="text-gray-600">
+              Sube imágenes de gatos y el sistema las clasificará
+              automáticamente como{" "}
+              <span className="font-semibold text-green-600">sanos</span> o{" "}
+              <span className="font-semibold text-red-600">enfermos</span>.
+              Obtén resultados detallados con nivel de confianza, visualízalos
+              en tabla o lista, y descarga un archivo CSV con todos los datos
+              procesados.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-6">
