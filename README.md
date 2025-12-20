@@ -9,10 +9,12 @@ Aplicación web completa para clasificar imágenes de gatos como "sanos" (health
 - [Estructura del Proyecto](#estructura-del-proyecto)
 - [Instalación y Configuración](#instalación-y-configuración)
 - [Ejecución Local](#ejecución-local)
-- [Despliegue en Producción](#despliegue-en-producción)
 - [Uso de la Aplicación](#uso-de-la-aplicación)
 - [Entrenamiento del Modelo](#entrenamiento-del-modelo)
+- [Aprendizaje Continuo](#aprendizaje-continuo-continual-learning)
+- [Endpoints de la API](#endpoints-de-la-api)
 - [Solución de Problemas](#solución-de-problemas)
+- [Despliegue en Producción](#despliegue-en-producción)
 
 ## 🎯 Descripción del Proyecto
 
@@ -210,7 +212,7 @@ Puedes crear scripts para iniciar ambos servicios simultáneamente.
 
 ## 🧠 Entrenamiento del Modelo
 
-⚠️ **IMPORTANTE**: El entrenamiento del modelo **NO se hace en Render** ni en otras plataformas de despliegue. Render es solo para desplegar la aplicación, no para entrenar modelos.
+⚠️ **IMPORTANTE**: El entrenamiento del modelo **NO se hace en plataformas de despliegue** (Render, Railway, etc.). Estas plataformas son solo para desplegar la aplicación, no para entrenar modelos.
 
 ### ¿Dónde entrenar el modelo?
 
@@ -246,7 +248,7 @@ Tienes varias opciones para entrenar el modelo:
 
    El modelo entrenado se guardará en `artifacts/best_model.pth`
 
-4. **Subir modelo al repositorio**:
+4. **Incluir el modelo en el proyecto**:
 
    ```bash
    git add artifacts/best_model.pth
@@ -254,7 +256,7 @@ Tienes varias opciones para entrenar el modelo:
    git push
    ```
 
-5. **Render desplegará automáticamente** el modelo junto con el código.
+   El modelo se incluirá en el despliegue automáticamente.
 
 #### Opción 2: Google Colab (Gratis con GPU)
 
@@ -280,22 +282,6 @@ Tienes varias opciones para entrenar el modelo:
 
 **Desventajas**: Requiere configuración y puede tener costos
 
-### Proceso Completo de Entrenamiento y Despliegue
-
-```
-1. Entrenar modelo (local/Colab/Kaggle)
-   ↓
-2. Obtener artifacts/best_model.pth
-   ↓
-3. Subir modelo al repositorio Git
-   ↓
-4. Hacer push al repositorio
-   ↓
-5. Render detecta cambios y despliega automáticamente
-   ↓
-6. El modelo ya está disponible en producción
-```
-
 ### Requisitos para el Entrenamiento
 
 - **Mínimo 3 imágenes** (para train/val/test split)
@@ -305,10 +291,10 @@ Tienes varias opciones para entrenar el modelo:
 
 ### Notas Importantes
 
-- **Render NO entrena modelos**: Render solo despliega el modelo ya entrenado
-- **El modelo debe estar en el repositorio**: Render copia todo el código, incluyendo `artifacts/best_model.pth`
+- **El modelo debe estar entrenado antes del despliegue**: El archivo `artifacts/best_model.pth` debe existir
 - **Si no hay modelo**: La aplicación funcionará pero mostrará "no clasificado" para todas las imágenes
-- **Modelos grandes**: Si el modelo es >100MB, considera usar Git LFS o subirlo manualmente después del despliegue
+- **Modelos grandes**: Si el modelo es >100MB, considera usar Git LFS (ver [DEPLOYMENT.md](./DEPLOYMENT.md))
+- **Para incluir el modelo en el despliegue**: Consulta la sección "Incluir el Modelo Entrenado" en [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## 🔄 Aprendizaje Continuo (Continual Learning)
 
@@ -359,20 +345,20 @@ En producción, puedes configurar un cron job o tarea programada:
 
 - Crear tarea programada que ejecute: `python incremental_train.py --epochs 10 --min-feedback 20`
 
-**Render/Railway (Cron Jobs)**:
+**En Producción**:
 
+- Consulta [DEPLOYMENT.md](./DEPLOYMENT.md) para configurar cron jobs en diferentes plataformas
 - Usa el endpoint `/api/v1/model/retrain` desde un servicio externo
-- O configura un cron job en tu servidor
 
 #### Opción 3: Reentrenamiento desde la API
 
 Puedes disparar el reentrenamiento mediante la API:
 
 ```bash
-curl -X POST "https://tu-backend.onrender.com/api/v1/model/retrain?epochs=10&min_feedback=10"
+curl -X POST "https://tu-backend.com/api/v1/model/retrain?epochs=10&min_feedback=10"
 ```
 
-**⚠️ Nota**: En Render/Railway, el reentrenamiento puede tomar tiempo. Considera ejecutarlo en un proceso separado o usar un servicio de tareas.
+**⚠️ Nota**: En producción, el reentrenamiento puede tomar tiempo. Consulta [DEPLOYMENT.md](./DEPLOYMENT.md) para consideraciones específicas de cada plataforma.
 
 ### Estructura de Datos de Feedback
 
@@ -417,538 +403,22 @@ Los datos se almacenan en:
 
 ## 🌐 Despliegue en Producción
 
-### Opción 1: Railway (Recomendado - Más Fácil)
+Para información completa sobre cómo desplegar este proyecto en producción, consulta la **[Guía de Despliegue](./DEPLOYMENT.md)**.
 
-Railway permite desplegar backend y frontend fácilmente.
+La guía incluye instrucciones detalladas para:
 
-#### Backend en Railway
+- ✅ **Plan de $25 USD en Render** - Análisis completo de recursos y configuración
+- ✅ **Despliegue en WHM** - Guía paso a paso para servidor propio
+- ✅ **Railway, Render, Vercel** - Configuración para cada plataforma
+- ✅ **Docker Compose** - Despliegue con contenedores
+- ✅ **Consideraciones de Reentrenamiento** - Almacenamiento persistente, recursos, timeouts
+- ✅ **Checklist completo** - Verificación paso a paso
 
-1. **Crear cuenta** en [railway.app](https://railway.app)
-2. **Nuevo proyecto** → "Deploy from GitHub repo" (o "Empty Project" para subir código)
-3. **Agregar servicio** → "GitHub Repo" o "Empty Service"
-4. **Si usas GitHub**: Selecciona tu repositorio
-5. **Configurar servicio**:
-   - Railway detectará automáticamente Python
-   - **Variables de entorno** (Settings → Variables):
-     ```
-     PORT=8000
-     ALLOWED_ORIGINS=https://tu-frontend.railway.app
-     ```
-6. Railway asignará una URL automáticamente (ej: `https://tu-backend.up.railway.app`)
-7. **Copiar la URL** del backend para usarla en el frontend
+**Resumen rápido:**
 
-#### Frontend en Railway
-
-1. **Nuevo servicio** en el mismo proyecto Railway
-2. **Agregar servicio** → "GitHub Repo" (mismo repo) o "Empty Service"
-3. **Configurar**:
-   - **Root Directory**: `frontend`
-   - Railway detectará Node.js automáticamente
-4. **Variables de entorno** (Settings → Variables):
-   ```
-   VITE_API_URL=https://tu-backend.up.railway.app
-   PORT=3001
-   ```
-5. **Build Settings** (Settings → Build):
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `npx serve -s dist -l $PORT`
-
-**Nota importante**: Railway reconstruye automáticamente cuando cambias variables de entorno. Asegúrate de que `VITE_API_URL` tenga la URL correcta del backend antes del build.
-
-### Opción 2: Render
-
-#### Backend en Render
-
-1. Crear cuenta en [render.com](https://render.com)
-2. **New** → **Web Service**
-3. Conectar repositorio GitHub
-4. Configurar:
-   - **Name**: `algoritmo-ia-backend`
-   - **Environment**: **Python 3** ⚠️ **Importante**: Selecciona Python 3, NO Docker (a menos que tengas un Dockerfile específico)
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT` ⚠️ **CRÍTICO**: Debe ser `uvicorn`, NO `gunicorn`
-5. **Environment Variables**:
-   ```
-   PORT=8000
-   ALLOWED_ORIGINS=https://tu-frontend.onrender.com
-   ```
-6. Render asignará una URL (ej: `https://algoritmo-ia-backend.onrender.com`)
-
-**Notas importantes**:
-
-- **Environment**: Si Render detecta automáticamente Docker, cámbialo a **Python 3**. Docker solo es necesario si tienes un `Dockerfile` en la raíz del proyecto y quieres usarlo.
-- **Start Command**: Asegúrate de que sea `uvicorn main:app --host 0.0.0.0 --port $PORT`. Si Render intenta usar `gunicorn`, cámbialo manualmente en la configuración.
-- **Procfile**: Si tienes un `Procfile` en tu repositorio, Render puede leerlo. Asegúrate de que contenga `web: uvicorn main:app --host 0.0.0.0 --port $PORT` (sin gunicorn).
-
-#### Frontend en Render
-
-1. **New** → **Static Site**
-2. Conectar repositorio GitHub
-3. Configurar:
-   - **Name**: `algoritmo-ia-frontend`
-   - **Branch**: `main` (o tu rama principal)
-   - **Root Directory**: `frontend` ⚠️ **Importante**: Configura esto primero
-   - **Build Command**: `npm install && npm run build` ⚠️ Sin `cd frontend` ni `frontend/` ya que Root Directory ya está configurado
-   - **Publish Directory**: `dist` ⚠️ Solo `dist`, no `frontend/dist` (es relativo al Root Directory)
-4. **Environment Variables**:
-   ```
-   VITE_API_URL=https://algoritmo-ia-backend.onrender.com
-   ```
-5. Render asignará una URL automáticamente
-
-**Nota importante**: Si configuraste **Root Directory** como `frontend`, entonces:
-
-- **Build Command** debe ser: `npm install && npm run build` (sin `cd frontend` ni `frontend/`)
-- **Publish Directory** debe ser: `dist` (no `frontend/dist`)
-
-Si NO configuraste Root Directory, entonces:
-
-- **Build Command**: `cd frontend && npm install && npm run build`
-- **Publish Directory**: `frontend/dist`
-
-### Opción 3: Vercel (Frontend) + Railway/Render (Backend)
-
-Esta opción combina Vercel para el frontend (muy rápido y fácil) con Railway o Render para el backend.
-
-#### Frontend en Vercel
-
-1. Crear cuenta en [vercel.com](https://vercel.com)
-2. **New Project** → Importar repositorio GitHub
-3. Configurar:
-   - **Framework Preset**: Vite
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build` (automático con Vite)
-   - **Output Directory**: `dist` (automático)
-4. **Environment Variables** (Settings → Environment Variables):
-   ```
-   VITE_API_URL=https://tu-backend.railway.app
-   ```
-   **Importante**: Agrega esta variable para **Production**, **Preview** y **Development**
-5. **Deploy**: Vercel desplegará automáticamente
-6. Vercel asignará una URL (ej: `https://algoritmo-ia.vercel.app`)
-
-**Ventajas de Vercel**:
-
-- Despliegue muy rápido
-- CDN global automático
-- Reconstrucción automática en cada push
-- Preview deployments para cada PR
-
-### Opción 4: Docker Compose (VPS/Cloud/Servidor Propio)
-
-#### Backend Dockerfile
-
-Crear `Dockerfile` en la raíz:
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar e instalar dependencias Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copiar código
-COPY . .
-
-# Crear directorios necesarios
-RUN mkdir -p uploads outputs artifacts feedback_data feedback_data/images artifacts/backups
-
-# Exponer puerto
-EXPOSE 8000
-
-# Comando de inicio
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
-```
-
-#### Frontend Dockerfile
-
-Crear `frontend/Dockerfile`:
-
-```dockerfile
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-#### docker-compose.yml
-
-```yaml
-version: "3.8"
-
-services:
-  backend:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - PORT=8000
-    volumes:
-      - ./uploads:/app/uploads
-      - ./outputs:/app/outputs
-      - ./artifacts:/app/artifacts
-      - ./feedback_data:/app/feedback_data # ⚠️ CRÍTICO para reentrenamiento
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3001:80"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    depends_on:
-      - backend
-    restart: unless-stopped
-```
-
-**Desplegar**:
-
-```bash
-docker-compose up -d
-```
-
-**Ver logs**:
-
-```bash
-docker-compose logs -f
-```
-
-**Detener**:
-
-```bash
-docker-compose down
-```
-
-**Actualizar**:
-
-```bash
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-```
-
-### Configuración de Variables de Entorno en Producción
-
-#### Backend
-
-**Railway/Render**:
-
-```env
-PORT=8000
-ALLOWED_ORIGINS=https://tu-frontend.vercel.app,https://tu-dominio.com
-```
-
-**Nota**: En Railway y Render, `PORT` se asigna automáticamente, pero puedes especificarlo.
-
-#### Frontend
-
-**Vercel/Railway/Render**:
-
-```env
-VITE_API_URL=https://tu-backend.railway.app
-```
-
-**Importante**:
-
-- En Vercel, agrega la variable en **Settings → Environment Variables**
-- Selecciona todos los ambientes (Production, Preview, Development)
-- Vercel reconstruirá automáticamente después de agregar variables
-
-### Incluir el Modelo Entrenado en el Despliegue
-
-⚠️ **PASO CRÍTICO**: Para que la clasificación funcione en producción, el modelo debe estar entrenado e incluido en el repositorio.
-
-**Proceso**:
-
-1. **Entrenar el modelo** (ver sección [Entrenamiento del Modelo](#-entrenamiento-del-modelo))
-
-   - Entrena localmente, en Colab, o en otra plataforma
-   - Obtén `artifacts/best_model.pth`
-
-2. **Subir el modelo al repositorio**:
-
-   ```bash
-   git add artifacts/best_model.pth
-   git commit -m "Add trained model"
-   git push
-   ```
-
-3. **Render desplegará automáticamente** el modelo junto con el código
-
-**Si el modelo es muy grande** (>100MB):
-
-- **Opción 1**: Usar Git LFS (recomendado)
-
-  ```bash
-  git lfs install
-  git lfs track "*.pth"
-  git add .gitattributes
-  git add artifacts/best_model.pth
-  git commit -m "Add trained model with LFS"
-  git push
-  ```
-
-- **Opción 2**: Subir manualmente después del despliegue
-
-  - Despliega primero sin el modelo
-  - Usa el shell de Render o SCP para subir el archivo
-  - Colócalo en `artifacts/best_model.pth`
-
-- **Opción 3**: Usar almacenamiento externo (S3, Google Cloud Storage)
-  - Modifica `predict.py` para descargar el modelo desde el almacenamiento
-  - Más complejo pero escalable
-
-**Nota**: Si no incluyes el modelo, la aplicación funcionará pero mostrará "no clasificado" para todas las imágenes. El backend mostrará un mensaje de advertencia en los logs.
-
-### ⚠️ Consideraciones Especiales para Reentrenamiento en Producción
-
-El reentrenamiento tiene requisitos específicos que debes considerar al desplegar:
-
-#### 1. **Almacenamiento Persistente**
-
-El sistema necesita almacenar:
-
-- `feedback_data/feedback.csv` - Historial de feedback
-- `feedback_data/images/` - Imágenes para reentrenamiento
-- `artifacts/best_model.pth` - Modelo entrenado
-- `artifacts/backups/` - Backups del modelo
-
-**Render/Railway (Gratuito)**:
-
-- ⚠️ **Limitación**: El almacenamiento es efímero. Los datos se pierden al reiniciar el servicio.
-- **Solución**: Usa volúmenes persistentes (Railway) o almacenamiento externo (S3, etc.)
-
-**Railway con Volúmenes**:
-
-1. En tu servicio backend → **Settings** → **Volumes**
-2. Agregar volúmenes para:
-   - `feedback_data/` → `/app/feedback_data`
-   - `artifacts/` → `/app/artifacts`
-   - `uploads/` → `/app/uploads` (opcional, para mantener imágenes)
-
-**Render (Gratuito)**:
-
-- ⚠️ **NO soporta volúmenes persistentes en el plan gratuito**
-- ⚠️ **Los datos se pierden cuando el servicio se reinicia** (sleep después de inactividad, despliegues, etc.)
-- **¿Funcionará el reentrenamiento?**
-  - ✅ **Sí, PERO con limitaciones**:
-    - Funciona mientras el servicio está activo
-    - El feedback se guarda en disco temporal (`feedback_data/`)
-    - El reentrenamiento puede ejecutarse y actualizar el modelo
-    - ⚠️ **PERO**: Si Render reinicia el servicio (sleep, despliegue, error), se pierden:
-      - Todos los datos de `feedback_data/` (feedback.csv, imágenes)
-      - El modelo actualizado en `artifacts/best_model.pth` (se restaura al del repositorio)
-      - Los backups en `artifacts/backups/`
-  - **Cuándo se reinicia**:
-    - Después de 15 minutos de inactividad (sleep)
-    - Al hacer un nuevo despliegue (git push)
-    - Si el servicio falla y se reinicia
-  - **Alternativas para persistencia**:
-    - **Opción 1**: Usar almacenamiento externo (S3, Google Cloud Storage) para feedback y modelos
-    - **Opción 2**: Usar Render PostgreSQL para metadatos (pero no las imágenes)
-    - **Opción 3**: Plan de pago de Render ($7/mes) que mantiene el servicio activo (menos sleep)
-    - **Opción 4**: Reentrenamiento externo (servidor separado que guarda en S3/DB)
-
-#### 2. **Recursos Computacionales**
-
-El reentrenamiento requiere:
-
-- **CPU**: Mínimo 2 cores recomendados
-- **RAM**: Mínimo 2GB (4GB+ recomendado para datasets grandes)
-- **Tiempo**: Puede tomar 10-30 minutos dependiendo del tamaño del dataset
-
-**Render/Railway (Gratuito)**:
-
-- ⚠️ **Limitación**: Recursos limitados, puede ser lento o fallar con datasets grandes
-- **Solución**:
-  - Usar menos épocas (`--epochs 5` en lugar de 10)
-  - Reentrenar solo cuando haya suficientes datos (50+ imágenes)
-  - Considerar un plan de pago para más recursos
-
-#### 3. **Timeout de Requests**
-
-**Render/Railway**:
-
-- ⚠️ **Limitación**: Requests HTTP tienen timeout (típicamente 30-60 segundos)
-- **Solución**: El reentrenamiento se ejecuta en background (threading), pero:
-  - El endpoint `/api/v1/model/retrain` retorna inmediatamente
-  - Usa `/api/v1/model/retrain/status` para verificar el progreso
-  - El frontend hace polling automático cada 2 segundos
-
-#### 4. **Recomendaciones por Plataforma**
-
-**Railway (Recomendado para Reentrenamiento)**:
-
-- ✅ Soporta volúmenes persistentes
-- ✅ Mejor para procesos largos
-- ✅ Más recursos en plan gratuito
-- **Configuración**:
-  ```yaml
-  # railway.json (opcional, para configuración avanzada)
-  {
-    "build": { "builder": "NIXPACKS" },
-    "deploy":
-      {
-        "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
-        "restartPolicyType": "ON_FAILURE",
-        "restartPolicyMaxRetries": 10,
-      },
-  }
-  ```
-
-**Render**:
-
-- ⚠️ **Plan gratuito**: Funciona pero **sin persistencia de datos**
-  - ✅ El reentrenamiento puede ejecutarse mientras el servicio está activo
-  - ✅ Los datos se guardan temporalmente en disco
-  - ⚠️ **Problema crítico**: Los datos se pierden cuando:
-    - El servicio entra en sleep (después de 15 min de inactividad)
-    - Se hace un nuevo despliegue (git push)
-    - El servicio se reinicia por error
-  - **Recomendación**:
-    - Para desarrollo/pruebas: ✅ Funciona bien
-    - Para producción: ⚠️ No recomendado sin persistencia
-- ✅ **Plan de pago ($7/mes)**:
-  - El servicio no entra en sleep (o menos frecuentemente)
-  - Los datos persisten mejor (aunque aún no hay volúmenes garantizados)
-  - Más adecuado para producción, pero aún con riesgo de pérdida de datos
-- **Alternativa sin plan de pago**:
-  - Usar almacenamiento externo (S3) para feedback y modelos (ver sección 6)
-  - O ejecutar reentrenamiento externamente (cron job en otro servidor)
-
-**VPS/Servidor Propio (Mejor para Reentrenamiento)**:
-
-- ✅ Control total sobre recursos
-- ✅ Almacenamiento persistente garantizado
-- ✅ Sin límites de tiempo
-- ✅ Puedes usar GPU si está disponible
-- **Recomendado para**: Producción con mucho tráfico
-
-#### 5. **Configuración de Docker para Reentrenamiento**
-
-Si usas Docker, asegúrate de montar volúmenes:
-
-```yaml
-# docker-compose.yml
-services:
-  backend:
-    build: .
-    volumes:
-      - ./feedback_data:/app/feedback_data # ⚠️ CRÍTICO para reentrenamiento
-      - ./artifacts:/app/artifacts # ⚠️ CRÍTICO para modelos
-      - ./uploads:/app/uploads # Opcional
-      - ./outputs:/app/outputs # Opcional
-    environment:
-      - PORT=8000
-```
-
-#### 6. **Alternativa: Almacenamiento Externo (S3/Cloud Storage)**
-
-Para Render sin plan de pago, puedes usar almacenamiento externo para mantener los datos:
-
-**Configuración con AWS S3** (ejemplo):
-
-1. **Crear bucket S3** para feedback y modelos
-2. **Modificar `feedback_storage.py`** para guardar en S3:
-
-   ```python
-   import boto3
-   import os
-
-   s3 = boto3.client('s3',
-       aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
-       aws_secret_access_key=os.getenv('AWS_SECRET_KEY')
-   )
-
-   # Guardar feedback.csv en S3 después de cada actualización
-   s3.upload_file('feedback_data/feedback.csv', 'bucket-name', 'feedback.csv')
-
-   # Cargar desde S3 al iniciar
-   s3.download_file('bucket-name', 'feedback.csv', 'feedback_data/feedback.csv')
-   ```
-
-3. **Variables de entorno en Render**:
-   ```
-   AWS_ACCESS_KEY=tu_key
-   AWS_SECRET_KEY=tu_secret
-   S3_BUCKET=tu-bucket
-   ```
-4. **Ventajas**:
-   - ✅ Datos persistentes incluso si Render reinicia
-   - ✅ Funciona en plan gratuito
-   - ✅ Escalable
-   - ✅ Backup automático
-
-**Otras opciones de almacenamiento**:
-
-- Google Cloud Storage
-- Azure Blob Storage
-- DigitalOcean Spaces
-- Backblaze B2
-
-#### 7. **Alternativa: Reentrenamiento Externo**
-
-Si Render/Railway no es suficiente, puedes:
-
-1. **Backend en Render/Railway** (solo clasificación)
-2. **Servidor separado para reentrenamiento**:
-
-   - VPS barato (DigitalOcean $5/mes, Linode, etc.)
-   - Google Colab (gratis, con GPU) - ejecutar manualmente
-   - AWS EC2 (con GPU si es necesario)
-
-   **Flujo**:
-
-   - Backend guarda feedback en S3 o base de datos
-   - Servidor de reentrenamiento lee datos periódicamente (cron job)
-   - Reentrena y sube el modelo actualizado a S3
-   - Backend descarga el modelo actualizado desde S3 al iniciar
-
-#### 8. **Configuración de Variables de Entorno para Reentrenamiento**
-
-```env
-# Backend
-PORT=8000
-ALLOWED_ORIGINS=https://tu-frontend.vercel.app
-
-# Opcional: Configurar límites de reentrenamiento
-MAX_RETRAIN_EPOCHS=10
-MIN_FEEDBACK_FOR_RETRAIN=10
-RETRAIN_TIMEOUT=3600  # 1 hora en segundos
-```
-
-### Checklist de Despliegue
-
-- [ ] Backend desplegado y accesible
-- [ ] Frontend configurado con `VITE_API_URL` correcta
-- [ ] CORS configurado en backend con URL del frontend
-- [ ] Modelo entrenado (`artifacts/best_model.pth`) incluido en el despliegue
-- [ ] Variables de entorno configuradas
-- [ ] **Almacenamiento persistente configurado** (volúmenes o S3) ⚠️ **CRÍTICO para reentrenamiento**
-- [ ] Probar subida de imágenes
-- [ ] Probar descarga de CSV
-- [ ] Verificar que las clasificaciones funcionen
-- [ ] **Probar guardado de feedback** (verificar que `feedback_data/feedback.csv` se cree)
-- [ ] **Probar reentrenamiento manual** desde el frontend
-- [ ] Verificar que el modelo se actualice después del reentrenamiento
+- **Render $25/mes**: ✅ Funciona con disco persistente agregado
+- **WHM/Servidor Propio**: ✅ Mejor opción para reentrenamiento sin limitaciones
+- **Railway**: ✅ Recomendado para empezar, soporta volúmenes persistentes
 
 ## 📡 Endpoints de la API
 
@@ -1049,37 +519,9 @@ pip install -r requirements.txt
 - Revisa los logs del backend para errores de carga del modelo
 - Asegúrate de que PyTorch esté instalado: `pip install torch torchvision`
 
-### Problemas en Railway/Render
+### Problemas de Despliegue
 
-**Error: `gunicorn: command not found`** (Render):
-
-Este error ocurre cuando Render intenta usar `gunicorn` pero no está instalado. **Solución**:
-
-1. **Verifica el Start Command en Render**:
-
-   - Ve a tu servicio en Render → Settings
-   - En **Start Command**, debe ser: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - **NO debe ser**: `gunicorn` o cualquier comando con gunicorn
-
-2. **Verifica el Procfile** (si existe):
-
-   - Debe contener: `web: uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - Si tiene `gunicorn`, cámbialo a `uvicorn`
-
-3. **Si Render detecta automáticamente gunicorn**:
-   - Ignora la detección automática
-   - Configura manualmente el Start Command como se indica arriba
-
-**Build falla**:
-
-- Verifica que todas las dependencias estén en `requirements.txt`
-- Revisa los logs de build en la plataforma
-- Asegúrate de usar Python 3.11 o 3.12 (no 3.14+)
-
-**Frontend no encuentra el backend**:
-
-- Usa la URL completa del backend en `VITE_API_URL`
-- Reconstruye el frontend después de cambiar variables de entorno
+Para problemas específicos de despliegue en Railway, Render, WHM u otras plataformas, consulta la sección de **Troubleshooting** en [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## 📊 Resultados y CSV
 
@@ -1104,6 +546,7 @@ uploads/imagen2.jpg,1,2024-01-15T10:30:01,api_upload,enfermo
 
 ## 📚 Documentación Adicional
 
+- **[Guía de Despliegue](./DEPLOYMENT.md)** - Instrucciones completas para desplegar en producción (Render, WHM, Railway, Docker, etc.)
 - **API Docs**: `http://localhost:8000/docs` (cuando el backend esté corriendo)
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`

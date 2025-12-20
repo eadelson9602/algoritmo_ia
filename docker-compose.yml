@@ -2,24 +2,38 @@ version: "3.8"
 
 services:
   backend:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: algoritmo-ia-backend
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
-      - ALLOWED_ORIGINS=http://localhost:3001
+      - ALLOWED_ORIGINS=http://localhost:3001,https://tu-dominio.com
+      - PYTHONUNBUFFERED=1
     volumes:
+      # Volúmenes persistentes (CRÍTICOS para reentrenamiento)
       - ./uploads:/app/uploads
       - ./outputs:/app/outputs
       - ./artifacts:/app/artifacts
+      - ./feedback_data:/app/feedback_data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "3001:80"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    depends_on:
-      - backend
-    restart: unless-stopped
+  # Frontend opcional - solo si quieres desplegarlo también con Docker
+  # frontend:
+  #   build: ./frontend
+  #   container_name: algoritmo-ia-frontend
+  #   ports:
+  #     - "3001:80"
+  #   environment:
+  #     - VITE_API_URL=http://localhost:8000
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
